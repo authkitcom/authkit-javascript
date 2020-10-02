@@ -256,8 +256,8 @@ class SecureImpl implements ISecure {
 
   private async createAndStoreStorage(): Promise<IStorage> {
     let thisUri = window.location.href;
-    if (thisUri.indexOf("#") > 0) { 
-      thisUri = thisUri.substring(0, thisUri.indexOf("#")); 
+    if (thisUri.indexOf('#') > 0) {
+      thisUri = thisUri.substring(0, thisUri.indexOf('#'));
     }
     const storage: IStorage = {
       nonce: this.randomString(32),
