@@ -255,7 +255,7 @@ class SecureImpl implements ISecure {
   }
 
   private async createAndStoreStorage(): Promise<IStorage> {
-    var thisUri = window.location.href;
+    let thisUri = window.location.href;
     if (thisUri.indexOf("#") > 0) { 
       thisUri = thisUri.substring(0, thisUri.indexOf("#")); 
     }
@@ -263,7 +263,7 @@ class SecureImpl implements ISecure {
       nonce: this.randomString(32),
       pkce: this.pkceSource.create(),
       state: this.randomString(32),
-      thisUri: thisUri,
+      thisUri,
     };
     sessionStorage.setItem(storageFlowKey, JSON.stringify(storage));
     return storage;
