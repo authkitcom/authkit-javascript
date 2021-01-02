@@ -366,6 +366,7 @@ describe('SecureImpl', () => {
                   code,
                   code_verifier: verifier,
                   grant_type: 'authorization_code',
+                  redirect_uri: thisUri,
                 }),
                 {
                   adapter: require('axios/lib/adapters/xhr'),
@@ -411,6 +412,7 @@ describe('SecureImpl', () => {
                   code,
                   code_verifier: verifier,
                   grant_type: 'authorization_code',
+                  redirect_uri: thisUri,
                 }),
                 {
                   adapter: require('axios/lib/adapters/xhr'),
@@ -465,6 +467,7 @@ describe('SecureImpl', () => {
                   code,
                   code_verifier: verifier,
                   grant_type: 'authorization_code',
+                  redirect_uri: thisUri,
                 }),
                 {
                   adapter: require('axios/lib/adapters/xhr'),
