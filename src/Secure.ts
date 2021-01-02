@@ -141,6 +141,7 @@ class SecureImpl implements ISecure {
         code,
         code_verifier: storage.pkce.verifier,
         grant_type: 'authorization_code',
+        redirect_uri: storage.thisUri,
       }),
       {
         adapter: require('axios/lib/adapters/xhr'),
