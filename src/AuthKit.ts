@@ -1,13 +1,13 @@
 import axios from 'axios';
 import * as queryString from 'query-string';
-import { Authentication } from './Authentication';
+import { Tokens } from './Tokens';
 import { Optional } from './Lang';
 import { IPkce, PkceSource } from './Pkce';
 
 interface IParams {
   issuer: string;
   clientId: string;
-  scope: string;
+  scope: Array<string>;
 }
 
 interface IStorage {
@@ -22,16 +22,15 @@ interface IUserinfo {
   [x: string]: any;
 }
 
-interface ISecure {
-  init(params: IParams): void;
-  secure(): Promise<void>;
+interface IAuthKit {
+  authorize(): Promise<IAuthKit>;
+  getTokens(): Optional<Tokens>;
   getUserinfo(): Optional<IUserinfo>;
-  getAuthentication(): Optional<Authentication>;
 }
 
-const storageFlowKey = 'authlogic.storage.flow';
-const storageAuthKey = 'authlogic.storage.auth';
-const storageUserinfoKey = 'authlogic.storage.userinfo';
+const storageFlowKey = 'authkit.storage.flow';
+const storageTokensKey = 'authkit.storage.tokens';
+const storageUserinfoKey = 'authkit.storage.userinfo';
 
 const codeKey = 'code';
 const stateKey = 'state';
@@ -50,7 +49,7 @@ const randomStringDefault = (length: number): string => {
 
 const getQueryDefault = (): string => location.search;
 
-class SecureImpl implements ISecure {
+class AuthKit implements IAuthKit {
   // Visible for testing
   public randomString: (length: number) => string = randomStringDefault;
 
@@ -62,32 +61,28 @@ class SecureImpl implements ISecure {
 
   private refreshCount = 0;
 
-  private params?: IParams;
+  private params: IParams;
   private pkceSource: PkceSource;
-  private authentication?: Authentication;
+  private tokens?: Tokens;
   private userinfo?: IUserinfo;
 
-  constructor(pkceSource: PkceSource) {
+  constructor(params: IParams, pkceSource: PkceSource) {
+    this.params = params;
     this.pkceSource = pkceSource;
   }
 
-  public init(params: IParams) {
-    this.params = params;
-  }
-
-  public getAuthentication(): Optional<Authentication> {
-    return this.authentication;
+  public getTokens(): Optional<Tokens> {
+    return this.tokens;
   }
 
   public getUserinfo(): Optional<IUserinfo> {
     return this.userinfo;
   }
 
-  public async secure() {
-    this.assertInit();
+  public async authorize(): Promise<IAuthKit> {
 
     if (await this.loadFromStorage()) {
-      return;
+      return Promise.resolve(this);
     }
 
     const q = queryString.parse(this.getQuery());
@@ -97,7 +92,7 @@ class SecureImpl implements ISecure {
     const errorDescription = this.stringFromQuery(q, errorDescriptionKey) || '';
 
     if (errorCategory) {
-      this.authentication = undefined;
+      this.tokens = undefined;
       const $storage = await this.getStorage();
       if ($storage?.thisUri) {
         window.history.pushState('page', '', $storage.thisUri);
@@ -106,17 +101,12 @@ class SecureImpl implements ISecure {
     }
     if (code) {
       await this.loadFromCode(code, state);
-      return;
+      return Promise.resolve(this);
     }
 
     const storage = await this.createAndStoreStorage();
     await this.redirect(storage);
-  }
-
-  private assertInit() {
-    if (!this.params) {
-      throw new Error('Params not set, please call init first.');
-    }
+    return Promise.resolve(this);
   }
 
   private stringFromQuery(q: queryString.ParsedQuery<string>, name: string): string | undefined {
@@ -160,12 +150,12 @@ class SecureImpl implements ISecure {
 
   private async processTokenResponse(resp: any) {
     if (resp.error) {
-      this.authentication = undefined;
+      this.tokens = undefined;
       throw new Error(`[${resp.error}] ${resp.error_description}`);
     }
 
     if (resp.access_token) {
-      this.authentication = {
+      this.tokens = {
         accessToken: resp.access_token,
         expiresIn: resp.expires_in,
         idToken: resp.id_token,
@@ -175,18 +165,18 @@ class SecureImpl implements ISecure {
       if (!this.userinfo) {
         await this.loadUserinfo();
       }
-      await this.finalStorage(this.authentication!, this.userinfo!);
+      await this.finalStorage(this.tokens!, this.userinfo!);
 
       this.refreshLoop(this);
     }
   }
 
-  private refreshLoop(that: SecureImpl) {
+  private refreshLoop(that: AuthKit) {
     // tslint:disable-next-line
-    console.log('Statging refresh loop');
+    console.log('Starting refresh loop');
 
     // seconds -> milliseconds
-    const interval = (that.authentication!.expiresIn - 30) * 1000;
+    const interval = (that.tokens!.expiresIn - 30) * 1000;
 
     setTimeout(async function refresh() {
       if (that.refreshLimit === -1 || that.refreshLimit >= that.refreshCount) {
@@ -196,12 +186,12 @@ class SecureImpl implements ISecure {
     }, interval);
   }
 
-  private async refresh(that: SecureImpl) {
+  private async refresh(that: AuthKit) {
     const res = await axios.post(
       that.params!.issuer + '/oauth/token',
       queryString.stringify({
         grant_type: 'refresh_token',
-        refresh_token: that.authentication!.refreshToken,
+        refresh_token: that.tokens!.refreshToken,
       }),
       {
         adapter: require('axios/lib/adapters/xhr'),
@@ -214,7 +204,7 @@ class SecureImpl implements ISecure {
     that.processTokenResponse(resp);
 
     // tslint:disable-next-line
-    console.log('Refreshed! ' + that.authentication?.accessToken);
+    console.log('Refreshed! ' + that.tokens?.accessToken);
   }
 
   private async loadUserinfo(): Promise<void> {
@@ -222,13 +212,13 @@ class SecureImpl implements ISecure {
       return;
     }
 
-    if (!this.authentication) {
+    if (!this.tokens) {
       throw new Error('Not authenticated');
     }
 
     const resp = await axios.get(this.params!.issuer + '/userinfo', {
       headers: {
-        Authorization: 'Bearer ' + this.authentication.accessToken,
+        Authorization: 'Bearer ' + this.tokens.accessToken,
       },
     });
 
@@ -242,7 +232,7 @@ class SecureImpl implements ISecure {
       `${this.params!.issuer}/authorize?client_id=${p.clientId}&redirect_uri=${encodeURIComponent(
         storage.thisUri,
       )}&state=${storage.state}&nonce=${storage.nonce}&response_type=code&scope=${encodeURIComponent(
-        p.scope,
+        p.scope.join(' '),
       )}&code_challenge=${encodeURIComponent(storage.pkce.challenge)}`,
     );
   }
@@ -270,17 +260,17 @@ class SecureImpl implements ISecure {
     return storage;
   }
 
-  private async finalStorage(authentication: Authentication, userinfo: IUserinfo) {
-    sessionStorage.setItem(storageAuthKey, JSON.stringify(authentication));
+  private async finalStorage(authentication: Tokens, userinfo: IUserinfo) {
+    sessionStorage.setItem(storageTokensKey, JSON.stringify(authentication));
     sessionStorage.setItem(storageUserinfoKey, JSON.stringify(userinfo));
     sessionStorage.removeItem(storageFlowKey);
   }
 
   private async loadFromStorage(): Promise<boolean> {
-    const authString = sessionStorage.getItem(storageAuthKey);
+    const authString = sessionStorage.getItem(storageTokensKey);
     const userinfoString = sessionStorage.getItem(storageUserinfoKey);
     if (authString && userinfoString) {
-      this.authentication = JSON.parse(authString);
+      this.tokens = JSON.parse(authString);
       this.userinfo = JSON.parse(userinfoString);
       this.refreshLoop(this);
       return true;
@@ -290,4 +280,4 @@ class SecureImpl implements ISecure {
   }
 }
 
-export { IParams, ISecure, IUserinfo, SecureImpl, randomStringDefault };
+export { IParams, IAuthKit, IUserinfo, AuthKit, randomStringDefault };

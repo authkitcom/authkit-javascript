@@ -1,7 +1,8 @@
-import { Authentication } from './Authentication';
+import { Tokens } from './Tokens';
+import { parser } from './Parser';
 import { PkceSource } from './Pkce';
-import { IParams, ISecure, IUserinfo, SecureImpl } from './Secure';
+import { IParams, IAuthKit, IUserinfo, AuthKit } from './AuthKit';
 
-const create = (): ISecure => new SecureImpl(new PkceSource());
+const create = (params: IParams): IAuthKit => new AuthKit(params, new PkceSource());
 
-export { Authentication, ISecure, IParams, IUserinfo, create };
+export { create, Tokens, IAuthKit, IParams, IUserinfo, parser };
