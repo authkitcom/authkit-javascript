@@ -1,5 +1,5 @@
-# Authlogic Javascript
+# AuthKit Javascript
 
-## Backlog
+## Install
 
-* Refresh logic
+
