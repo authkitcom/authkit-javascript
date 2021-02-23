@@ -1,13 +1,13 @@
 import axios from 'axios';
 import * as queryString from 'query-string';
-import { Tokens } from './Tokens';
 import { Optional } from './Lang';
 import { IPkce, PkceSource } from './Pkce';
+import { Tokens } from './Tokens';
 
 interface IParams {
   issuer: string;
   clientId: string;
-  scope: Array<string>;
+  scope: string[];
 }
 
 interface IStorage {

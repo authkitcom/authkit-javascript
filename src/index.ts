@@ -1,7 +1,7 @@
-import { Tokens } from './Tokens';
+import { AuthKit, IAuthKit, IParams, IUserinfo } from './AuthKit';
 import { parser } from './Parser';
 import { PkceSource } from './Pkce';
-import { IParams, IAuthKit, IUserinfo, AuthKit } from './AuthKit';
+import { Tokens } from './Tokens';
 
 const create = (params: IParams): IAuthKit => new AuthKit(params, new PkceSource());
 
