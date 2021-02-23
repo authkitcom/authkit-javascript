@@ -1,7 +1,7 @@
 {
   "name": "@authkitcom/core",
   "private": false,
-  "version": "0.9.5",
+  "version": "0.9.10",
   "description": "Core javascript AuthKit library",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",

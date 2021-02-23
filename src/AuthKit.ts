@@ -80,7 +80,6 @@ class AuthKit implements IAuthKit {
   }
 
   public async authorize(): Promise<IAuthKit> {
-
     if (await this.loadFromStorage()) {
       return Promise.resolve(this);
     }
