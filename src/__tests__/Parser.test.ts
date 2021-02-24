@@ -1,6 +1,6 @@
-import { parser } from '../Parser';
+import { jwtParser } from '../Parser';
 
-describe('parser', () => {
+describe('jwtParser', () => {
   const parameters = [
     { description: 'empty', input: '', expected: {} },
     {
@@ -22,7 +22,7 @@ describe('parser', () => {
 
   parameters.forEach(parameter => {
     it(parameter.description, () => {
-      expect(parser(parameter.input)).toEqual(parameter.expected);
+      expect(jwtParser(parameter.input)).toEqual(parameter.expected);
     });
   });
 });
