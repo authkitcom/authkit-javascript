@@ -39,7 +39,6 @@ const storageTokensKey = 'authkit.storage.tokens';
 const storageUserinfoKey = 'authkit.storage.userinfo';
 
 const codeKey = 'code';
-//const stateKey = 'state';
 const errorCategoryKey = 'error';
 const errorDescriptionKey = 'error_description';
 
@@ -160,7 +159,6 @@ class AuthKit implements IAuthKit {
 
     const q = queryString.parse(this.getQuery());
     const code = this.stringFromQuery(q, codeKey);
-    //const state = this.stringFromQuery(q, stateKey);
     const errorCategory = this.stringFromQuery(q, errorCategoryKey);
     const errorDescription = this.stringFromQuery(q, errorDescriptionKey) || '';
 
