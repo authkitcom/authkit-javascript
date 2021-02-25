@@ -1,4 +1,4 @@
-import { AuthKit, IAuthKit, IAuthorizeParams,  ICreateParams,  IUserinfo } from './AuthKit';
+import { AuthKit, IAuthKit, IAuthorizeParams, ICreateParams, IUserinfo } from './AuthKit';
 import { jwtParser } from './Parser';
 import { PkceSource } from './Pkce';
 import { Tokens } from './Tokens';

@@ -5,7 +5,7 @@ import * as queryString from 'query-string';
 import { Optional } from '../Lang';
 import { PkceSource } from '../Pkce';
 import { ICreateParams, IUserinfo, randomStringDefault, AuthKit } from '../AuthKit';
-import '@testing-library/jest-dom'
+import '@testing-library/jest-dom';
 
 jest.mock('axios');
 const mockAxios = axios as jest.Mocked<typeof axios>;
@@ -101,7 +101,7 @@ describe('AuthKit', () => {
     const $unit = new AuthKit(params(), pkceSource);
     $unit.randomString = (length: number) => `stub-${length}`;
     $unit.getQuery = () => query;
-    $unit.redirect = (url: string) => redirectTo = url;
+    $unit.redirect = (url: string) => (redirectTo = url);
     $unit.refreshLimit = 3;
     return $unit;
   };
@@ -216,7 +216,7 @@ describe('AuthKit', () => {
     });
 
     describe('authentication not in storage', () => {
-      describe('minimal params', () =>{
+      describe('minimal params', () => {
         beforeEach(async () => {
           pkceSource.create().returns({
             challenge,
@@ -256,16 +256,18 @@ describe('AuthKit', () => {
         it('does not have userionfo storage', () => {
           expect(sessionStorage.__STORE__[storageUserinfoKey]).toBeUndefined();
         });
-      })
-      describe('with state', () =>{
+      });
+      describe('with state', () => {
         beforeEach(async () => {
           pkceSource.create().returns({
             challenge,
             verifier,
           });
-          expect(await unit.authorize({
-            state: state,
-          })).toEqual(unit);
+          expect(
+            await unit.authorize({
+              state: state,
+            }),
+          ).toEqual(unit);
         });
         it('redirected to the endpoint', () => {
           expect(redirectTo).toBe(
@@ -274,9 +276,9 @@ describe('AuthKit', () => {
             )}&state=${state}&nonce=stub-32&response_type=code&scope=scope1%20scope2&code_challenge=test-challenge`,
           );
         });
-      })
-      describe('with post binding', () =>{
-        let form: HTMLFormElement
+      });
+      describe('with post binding', () => {
+        let form: HTMLFormElement;
         beforeEach(() => {
           unit.submitForm = ($form: HTMLFormElement) => {
             form = $form;
@@ -288,9 +290,11 @@ describe('AuthKit', () => {
         });
         describe('minimal params', () => {
           beforeEach(async () => {
-            expect(await unit.authorize({
-              binding: 'post',
-            })).toEqual(unit);
+            expect(
+              await unit.authorize({
+                binding: 'post',
+              }),
+            ).toEqual(unit);
           });
           it('performs a form post', () => {
             expect(form.method).toEqual('post');
@@ -301,7 +305,7 @@ describe('AuthKit', () => {
               client_id: clientId,
             });
             */
-        /*
+            /*
         addField('redirect_uri', storage.thisUri)
         if (state) {
           addField('state', state);
@@ -313,7 +317,7 @@ describe('AuthKit', () => {
         */
           });
         });
-      })
+      });
     });
 
     describe('return with code without storage', () => {
