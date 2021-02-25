@@ -5,6 +5,7 @@ import * as queryString from 'query-string';
 import { Optional } from '../Lang';
 import { PkceSource } from '../Pkce';
 import { ICreateParams, IUserinfo, randomStringDefault, AuthKit } from '../AuthKit';
+import '@testing-library/jest-dom'
 
 jest.mock('axios');
 const mockAxios = axios as jest.Mocked<typeof axios>;
@@ -42,14 +43,14 @@ describe('AuthKit', () => {
   const errorCategory = 'test-error';
   const errorDescription = 'test-error-description';
 
-  const issuer = 'test-issuer';
+  const issuer = 'https://test-issuer';
   const clientId = 'test-client-id';
   const scope = ['scope1', 'scope2'];
 
   const verifier = 'test-verifier';
   const challenge = 'test-challenge';
   const code = 'test-code';
-  //const state = 'test-state';
+  const state = 'test-state';
   const nonce = 'test-nonce';
 
   let query = '';
@@ -100,6 +101,7 @@ describe('AuthKit', () => {
     const $unit = new AuthKit(params(), pkceSource);
     $unit.randomString = (length: number) => `stub-${length}`;
     $unit.getQuery = () => query;
+    $unit.redirect = (url: string) => redirectTo = url;
     $unit.refreshLimit = 3;
     return $unit;
   };
@@ -111,9 +113,6 @@ describe('AuthKit', () => {
     query = '';
     error = undefined;
     pkceSource = Substitute.for<PkceSource>();
-    window.location.assign = jest.fn(value => {
-      redirectTo = value;
-    });
     sessionStorage.removeItem(storageFlowKey);
     unit = makeUnit();
   });
@@ -217,45 +216,104 @@ describe('AuthKit', () => {
     });
 
     describe('authentication not in storage', () => {
-      beforeEach(async () => {
-        pkceSource.create().returns({
-          challenge,
-          verifier,
-        });
-        expect(await unit.authorize()).toEqual(unit);
-      });
-      it('has no authentication', async () => {
-        expect(unit.getTokens()).toBeUndefined();
-      });
-      it('has no userinfo', async () => {
-        expect(unit.getUserinfo()).toBeUndefined();
-      });
-      it('redirected to the endpoint', () => {
-        expect(redirectTo).toBe(
-          `test-issuer/authorize?client_id=test-client-id&redirect_uri=${encodeURIComponent(
-            window.location.href,
-          )}&nonce=stub-32&response_type=code&scope=scope1%20scope2&code_challenge=test-challenge`,
-        );
-      });
-      it('stores state and nonce', () => {
-        expect(JSON.parse(sessionStorage.__STORE__[storageFlowKey])).toEqual({
-          nonce: 'stub-32',
-          pkce: {
+      describe('minimal params', () =>{
+        beforeEach(async () => {
+          pkceSource.create().returns({
             challenge,
             verifier,
-          },
-          thisUri: window.location.href,
+          });
+          expect(await unit.authorize()).toEqual(unit);
         });
-      });
-      it('does not push state', () => {
-        expect(pushStateMock.mock.calls.length).toBe(0);
-      });
-      it('does not have auth storage', () => {
-        expect(sessionStorage.__STORE__[storageTokensKey]).toBeUndefined();
-      });
-      it('does not have userionfo storage', () => {
-        expect(sessionStorage.__STORE__[storageUserinfoKey]).toBeUndefined();
-      });
+        it('has no authentication', async () => {
+          expect(unit.getTokens()).toBeUndefined();
+        });
+        it('has no userinfo', async () => {
+          expect(unit.getUserinfo()).toBeUndefined();
+        });
+        it('redirected to the endpoint', () => {
+          expect(redirectTo).toBe(
+            `${issuer}/authorize?client_id=test-client-id&redirect_uri=${encodeURIComponent(
+              window.location.href,
+            )}&nonce=stub-32&response_type=code&scope=scope1%20scope2&code_challenge=test-challenge`,
+          );
+        });
+        it('stores state and nonce', () => {
+          expect(JSON.parse(sessionStorage.__STORE__[storageFlowKey])).toEqual({
+            nonce: 'stub-32',
+            pkce: {
+              challenge,
+              verifier,
+            },
+            thisUri: window.location.href,
+          });
+        });
+        it('does not push state', () => {
+          expect(pushStateMock.mock.calls.length).toBe(0);
+        });
+        it('does not have auth storage', () => {
+          expect(sessionStorage.__STORE__[storageTokensKey]).toBeUndefined();
+        });
+        it('does not have userionfo storage', () => {
+          expect(sessionStorage.__STORE__[storageUserinfoKey]).toBeUndefined();
+        });
+      })
+      describe('with state', () =>{
+        beforeEach(async () => {
+          pkceSource.create().returns({
+            challenge,
+            verifier,
+          });
+          expect(await unit.authorize({
+            state: state,
+          })).toEqual(unit);
+        });
+        it('redirected to the endpoint', () => {
+          expect(redirectTo).toBe(
+            `${issuer}/authorize?client_id=test-client-id&redirect_uri=${encodeURIComponent(
+              window.location.href,
+            )}&state=${state}&nonce=stub-32&response_type=code&scope=scope1%20scope2&code_challenge=test-challenge`,
+          );
+        });
+      })
+      describe('with post binding', () =>{
+        let form: HTMLFormElement
+        beforeEach(() => {
+          unit.submitForm = ($form: HTMLFormElement) => {
+            form = $form;
+          };
+          pkceSource.create().returns({
+            challenge,
+            verifier,
+          });
+        });
+        describe('minimal params', () => {
+          beforeEach(async () => {
+            expect(await unit.authorize({
+              binding: 'post',
+            })).toEqual(unit);
+          });
+          it('performs a form post', () => {
+            expect(form.method).toEqual('post');
+            expect(form.action).toEqual(`${issuer}/authorize`);
+
+            /*
+            expect(form).toHaveFormValues({
+              client_id: clientId,
+            });
+            */
+        /*
+        addField('redirect_uri', storage.thisUri)
+        if (state) {
+          addField('state', state);
+        }
+        addField('nonce', storage.nonce);
+        addField('response_type', 'code');
+        addField('scope', p.scope.join(' '))
+        addField('code_challenge', storage.pkce.challenge)
+        */
+          });
+        });
+      })
     });
 
     describe('return with code without storage', () => {
@@ -308,7 +366,7 @@ describe('AuthKit', () => {
       });
     });
 
-    describe('return with code and storage', () => {
+    describe('return with code with storage', () => {
       beforeEach(async () => {
         query = `?code=${code}`;
         sessionStorage.__STORE__[storageFlowKey] = JSON.stringify({

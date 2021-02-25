@@ -29,7 +29,7 @@ interface IUserinfo {
 }
 
 interface IAuthKit {
-  authorize(params: IAuthorizeParams): Promise<IAuthKit>;
+  authorize(params?: IAuthorizeParams): Promise<IAuthKit>;
   getTokens(): Optional<Tokens>;
   getUserinfo(): Optional<IUserinfo>;
 }
@@ -54,6 +54,8 @@ const randomStringDefault = (length: number): string => {
 };
 
 const getQueryDefault = (): string => location.search;
+const submitFormDefault = (form: HTMLFormElement): void => { form.submit() };
+const redirectDefault = (url: string): void => { window.location.assign(url) };
 
 class AuthKit implements IAuthKit {
   // Visible for testing
@@ -65,6 +67,12 @@ class AuthKit implements IAuthKit {
   // Visible for testing
   public refreshLimit: number = -1;
 
+  // Visible for testing
+  public redirect: (url: string) => void = redirectDefault;
+
+  // Visible for testing
+  public submitForm: (form: HTMLFormElement) => void = submitFormDefault;
+
   private refreshCount = 0;
 
   private params: ICreateParams;
@@ -72,9 +80,69 @@ class AuthKit implements IAuthKit {
   private tokens?: Tokens;
   private userinfo?: IUserinfo;
 
+  private bindings: Map<string,(storage: IStorage, state: Optional<string>, extensions: Optional<any>) => Promise<void>>
+
   constructor(params: ICreateParams, pkceSource: PkceSource) {
+
     this.params = params;
     this.pkceSource = pkceSource;
+    this.bindings = new Map<string,(storage: IStorage, state: Optional<string>, extensions: Optional<any>) => Promise<void>>()
+
+    this.bindings.set('get', async (storage: IStorage, state: Optional<string>, extensions: Optional<any>) => {
+        const p = this.params!;
+        this.redirect(
+          `${p.issuer}/authorize?client_id=${p.clientId}&redirect_uri=${encodeURIComponent(
+            storage.thisUri,
+          )}${(():string=>{ 
+            if (state) {
+              return `&state=${state}`
+            } else {
+              return ''
+            }
+          })()}&nonce=${storage.nonce}&response_type=code&scope=${encodeURIComponent(
+            p.scope.join(' '),
+          )}&code_challenge=${encodeURIComponent(storage.pkce.challenge)}`,
+        );
+      }
+    )
+
+    // TODO - Need some unit tesing around this
+    this.bindings.set('post', async (storage: IStorage, state: Optional<string>, extensions: Optional<any>) => {
+        const p = this.params!;
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `${p.issuer}/authorize`;
+        form.style.display = 'none';
+
+        const addField = (name: string, value: string) => {
+          const f = document.createElement('input');
+          f.type = 'hidden';
+          f.name = name;
+          f.value = value;
+          form.appendChild(f);
+        }
+
+
+        addField('client_id', p.clientId);
+        addField('redirect_uri', storage.thisUri)
+        if (state) {
+          addField('state', state);
+        }
+        addField('nonce', storage.nonce);
+        addField('response_type', 'code');
+        addField('scope', p.scope.join(' '))
+        addField('code_challenge', storage.pkce.challenge)
+        if (extensions) {
+          addField('extensions', JSON.stringify(extensions))
+        }
+
+        document.body.appendChild(form);
+
+        this.submitForm(form);
+
+      }
+    )
   }
 
   public getTokens(): Optional<Tokens> {
@@ -111,7 +179,11 @@ class AuthKit implements IAuthKit {
     }
 
     const storage = await this.createAndStoreStorage();
-    await this.redirect(storage);
+    const binding = this.bindings.get(params.binding || 'get')
+    if (! binding) {
+      throw new Error(`Invalid binding ${params.binding}`);
+    }
+    await binding(storage, params.state, params.extensions);
     return Promise.resolve(this);
   }
 
@@ -178,8 +250,6 @@ class AuthKit implements IAuthKit {
   }
 
   private refreshLoop(that: AuthKit) {
-    // tslint:disable-next-line
-    console.log('Starting refresh loop');
 
     // seconds -> milliseconds
     const interval = (that.tokens!.expiresIn - 30) * 1000;
@@ -209,8 +279,6 @@ class AuthKit implements IAuthKit {
 
     that.processTokenResponse(resp);
 
-    // tslint:disable-next-line
-    console.log('Refreshed! ' + that.tokens?.accessToken);
   }
 
   private async loadUserinfo(): Promise<void> {
@@ -229,18 +297,6 @@ class AuthKit implements IAuthKit {
     });
 
     this.userinfo = resp.data;
-  }
-
-  private async redirect(storage: IStorage) {
-    const p = this.params!;
-
-    window.location.assign(
-      `${this.params!.issuer}/authorize?client_id=${p.clientId}&redirect_uri=${encodeURIComponent(
-        storage.thisUri,
-      )}&nonce=${storage.nonce}&response_type=code&scope=${encodeURIComponent(
-        p.scope.join(' '),
-      )}&code_challenge=${encodeURIComponent(storage.pkce.challenge)}`,
-    );
   }
 
   private async getStorage(): Promise<Optional<IStorage>> {
