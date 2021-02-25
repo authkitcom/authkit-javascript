@@ -28,15 +28,15 @@ first.
 
 import { Tokens, createAuthKit, jwtParser } from '@authkitcom/core';
 
-var authKit = createAuthKit({
+const authKit = createAuthKit({
   clientId: '9cc49356-433b-49a1-bf24-4dd00cb34523', 
   issuer: 'https://tenant.authkit.com',
-  scope: ['email profile openid'],
+  scope: ['email', 'profile', 'openid'],
 });
 
-var tokens = (await authKit.authorize()).getTokens();
+const tokens = (await authKit.authorize()).getTokens();
 
-var idFields = jwtParser(tokens.idToken);
+const idFields = jwtParser(tokens.idToken);
 
 console.log(idFields);
 
