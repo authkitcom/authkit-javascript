@@ -4,7 +4,7 @@ import 'jest-localstorage-mock';
 import * as queryString from 'query-string';
 import { Optional } from '../Lang';
 import { PkceSource } from '../Pkce';
-import { IParams, IUserinfo, randomStringDefault, AuthKit } from '../AuthKit';
+import { ICreateParams, IUserinfo, randomStringDefault, AuthKit } from '../AuthKit';
 
 jest.mock('axios');
 const mockAxios = axios as jest.Mocked<typeof axios>;
@@ -49,7 +49,7 @@ describe('AuthKit', () => {
   const verifier = 'test-verifier';
   const challenge = 'test-challenge';
   const code = 'test-code';
-  const state = 'test-state';
+  //const state = 'test-state';
   const nonce = 'test-nonce';
 
   let query = '';
@@ -88,7 +88,7 @@ describe('AuthKit', () => {
   let unit: AuthKit;
   let error: Optional<Error>;
 
-  const params = (): IParams => {
+  const params = (): ICreateParams => {
     return {
       clientId,
       issuer,
@@ -234,7 +234,7 @@ describe('AuthKit', () => {
         expect(redirectTo).toBe(
           `test-issuer/authorize?client_id=test-client-id&redirect_uri=${encodeURIComponent(
             window.location.href,
-          )}&state=stub-32&nonce=stub-32&response_type=code&scope=scope1%20scope2&code_challenge=test-challenge`,
+          )}&nonce=stub-32&response_type=code&scope=scope1%20scope2&code_challenge=test-challenge`,
         );
       });
       it('stores state and nonce', () => {
@@ -244,7 +244,6 @@ describe('AuthKit', () => {
             challenge,
             verifier,
           },
-          state: 'stub-32',
           thisUri: window.location.href,
         });
       });
@@ -318,7 +317,6 @@ describe('AuthKit', () => {
             challenge,
             verifier,
           },
-          state,
           thisUri,
         });
       });

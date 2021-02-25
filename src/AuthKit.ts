@@ -4,17 +4,23 @@ import { Optional } from './Lang';
 import { IPkce, PkceSource } from './Pkce';
 import { Tokens } from './Tokens';
 
-interface IParams {
+interface ICreateParams {
   issuer: string;
   clientId: string;
   scope: string[];
 }
 
+interface IAuthorizeParams {
+  state?: string;
+  stateReturn? : (state: string) => void
+  binding?: string
+  extensions?: any
+}
 interface IStorage {
   thisUri: string;
   nonce: string;
   pkce: IPkce;
-  state: string;
+  state?: string;
 }
 
 interface IUserinfo {
@@ -23,7 +29,7 @@ interface IUserinfo {
 }
 
 interface IAuthKit {
-  authorize(): Promise<IAuthKit>;
+  authorize(params: IAuthorizeParams): Promise<IAuthKit>;
   getTokens(): Optional<Tokens>;
   getUserinfo(): Optional<IUserinfo>;
 }
@@ -33,7 +39,7 @@ const storageTokensKey = 'authkit.storage.tokens';
 const storageUserinfoKey = 'authkit.storage.userinfo';
 
 const codeKey = 'code';
-const stateKey = 'state';
+//const stateKey = 'state';
 const errorCategoryKey = 'error';
 const errorDescriptionKey = 'error_description';
 
@@ -61,12 +67,12 @@ class AuthKit implements IAuthKit {
 
   private refreshCount = 0;
 
-  private params: IParams;
+  private params: ICreateParams;
   private pkceSource: PkceSource;
   private tokens?: Tokens;
   private userinfo?: IUserinfo;
 
-  constructor(params: IParams, pkceSource: PkceSource) {
+  constructor(params: ICreateParams, pkceSource: PkceSource) {
     this.params = params;
     this.pkceSource = pkceSource;
   }
@@ -79,14 +85,14 @@ class AuthKit implements IAuthKit {
     return this.userinfo;
   }
 
-  public async authorize(): Promise<IAuthKit> {
+  public async authorize(params: IAuthorizeParams = {}): Promise<IAuthKit> {
     if (await this.loadFromStorage()) {
       return Promise.resolve(this);
     }
 
     const q = queryString.parse(this.getQuery());
     const code = this.stringFromQuery(q, codeKey);
-    const state = this.stringFromQuery(q, stateKey);
+    //const state = this.stringFromQuery(q, stateKey);
     const errorCategory = this.stringFromQuery(q, errorCategoryKey);
     const errorDescription = this.stringFromQuery(q, errorDescriptionKey) || '';
 
@@ -98,8 +104,9 @@ class AuthKit implements IAuthKit {
       }
       throw new Error(`[${errorCategory}] ${errorDescription}`);
     }
+
     if (code) {
-      await this.loadFromCode(code, state);
+      await this.loadFromCode(code);
       return Promise.resolve(this);
     }
 
@@ -117,7 +124,7 @@ class AuthKit implements IAuthKit {
     return undefined;
   }
 
-  private async loadFromCode(code: string, state: string | undefined) {
+  private async loadFromCode(code: string) {
     const storage = await this.getStorage();
 
     if (!storage) {
@@ -230,7 +237,7 @@ class AuthKit implements IAuthKit {
     window.location.assign(
       `${this.params!.issuer}/authorize?client_id=${p.clientId}&redirect_uri=${encodeURIComponent(
         storage.thisUri,
-      )}&state=${storage.state}&nonce=${storage.nonce}&response_type=code&scope=${encodeURIComponent(
+      )}&nonce=${storage.nonce}&response_type=code&scope=${encodeURIComponent(
         p.scope.join(' '),
       )}&code_challenge=${encodeURIComponent(storage.pkce.challenge)}`,
     );
@@ -252,7 +259,6 @@ class AuthKit implements IAuthKit {
     const storage: IStorage = {
       nonce: this.randomString(32),
       pkce: this.pkceSource.create(),
-      state: this.randomString(32),
       thisUri,
     };
     sessionStorage.setItem(storageFlowKey, JSON.stringify(storage));
@@ -279,4 +285,4 @@ class AuthKit implements IAuthKit {
   }
 }
 
-export { IParams, IAuthKit, IUserinfo, AuthKit, randomStringDefault };
+export { IAuthKit, IAuthorizeParams, ICreateParams, IUserinfo, AuthKit, randomStringDefault };
