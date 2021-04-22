@@ -292,11 +292,14 @@ class AuthKit implements IAuthKit {
       throw new Error('Not authenticated');
     }
 
-    const resp = await axios.get(this.params!.issuer + '/userinfo?client_id=' + encodeURIComponent(this.params.clientId), {
-      headers: {
-        Authorization: 'Bearer ' + this.tokens.accessToken,
+    const resp = await axios.get(
+      this.params!.issuer + '/userinfo?client_id=' + encodeURIComponent(this.params.clientId),
+      {
+        headers: {
+          Authorization: 'Bearer ' + this.tokens.accessToken,
+        },
       },
-    });
+    );
 
     this.userinfo = resp.data;
   }
