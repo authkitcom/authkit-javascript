@@ -209,6 +209,7 @@ class AuthKit implements IAuthKit {
     const res = await axios.post(
       this.params!.issuer + '/oauth/token',
       queryString.stringify({
+        client_id: this.params.clientId,
         code,
         code_verifier: storage.pkce.verifier,
         grant_type: 'authorization_code',

@@ -398,6 +398,7 @@ describe('AuthKit', () => {
           expect(mockAxios.post).toHaveBeenCalledWith(
             issuer + '/oauth/token',
             queryString.stringify({
+              client_id: clientId,
               code,
               code_verifier: verifier,
               grant_type: 'authorization_code',
@@ -444,6 +445,7 @@ describe('AuthKit', () => {
           expect(mockAxios.post).toHaveBeenCalledWith(
             issuer + '/oauth/token',
             queryString.stringify({
+              client_id: clientId,
               code,
               code_verifier: verifier,
               grant_type: 'authorization_code',
@@ -499,6 +501,7 @@ describe('AuthKit', () => {
           expect(mockAxios.post).toHaveBeenCalledWith(
             issuer + '/oauth/token',
             queryString.stringify({
+              client_id: clientId,
               code,
               code_verifier: verifier,
               grant_type: 'authorization_code',
