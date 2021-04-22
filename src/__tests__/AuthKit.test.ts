@@ -514,7 +514,7 @@ describe('AuthKit', () => {
           );
         });
         it('makes call to userinfo endpoint', async () => {
-          expect(mockAxios.get).toHaveBeenCalledWith(issuer + '/userinfo', {
+          expect(mockAxios.get).toHaveBeenCalledWith(issuer + '/userinfo?client_id=' + encodeURIComponent(clientId), {
             headers: { Authorization: 'Bearer ' + accessToken },
           });
         });
