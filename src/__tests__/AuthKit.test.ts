@@ -101,7 +101,7 @@ describe('AuthKit', () => {
     const $unit = new AuthKit(params(), pkceSource);
     $unit.randomString = (length: number) => `stub-${length}`;
     $unit.getQuery = () => query;
-    $unit.redirect = (url: string) => (redirectTo = url);
+    $unit.local_redirect = (url: string) => (redirectTo = url);
     $unit.refreshLimit = 3;
     return $unit;
   };
@@ -230,12 +230,8 @@ describe('AuthKit', () => {
         it('has no userinfo', async () => {
           expect(unit.getUserinfo()).toBeUndefined();
         });
-        it('redirected to the endpoint', () => {
-          expect(redirectTo).toBe(
-            `${issuer}/authorize?client_id=test-client-id&redirect_uri=${encodeURIComponent(
-              window.location.href,
-            )}&nonce=stub-32&response_type=code&scope=scope1%20scope2&code_challenge=test-challenge`,
-          );
+        it('does not redirect', () => {
+          expect(redirectTo).toBe('');
         });
         it('stores state and nonce', () => {
           expect(JSON.parse(sessionStorage.__STORE__[storageFlowKey])).toEqual({
@@ -253,30 +249,105 @@ describe('AuthKit', () => {
         it('does not have auth storage', () => {
           expect(sessionStorage.__STORE__[storageTokensKey]).toBeUndefined();
         });
-        it('does not have userionfo storage', () => {
+        it('does not have userinfo storage', () => {
           expect(sessionStorage.__STORE__[storageUserinfoKey]).toBeUndefined();
         });
+        describe('with manual redirect', () => {
+          beforeEach(async () => {
+            try {
+              await unit.redirect();
+            } catch (e) {
+              error = e;
+            }
+          });
+          it('redirects to endpoint', () => {
+            expect(redirectTo).toBe(
+              `${issuer}/authorize?client_id=test-client-id&redirect_uri=${encodeURIComponent(
+                window.location.href,
+              )}&nonce=stub-32&response_type=code&scope=scope1%20scope2&code_challenge=test-challenge`,
+            );
+          });
+        });
       });
-      describe('with state', () => {
+
+      describe('with required redirect', () => {
         beforeEach(async () => {
           pkceSource.create().returns({
             challenge,
             verifier,
           });
-          expect(
-            await unit.authorize({
-              state: state,
-            }),
-          ).toEqual(unit);
+          unit.setRequired();
+          expect(await unit.authorize()).toEqual(unit);
         });
-        it('redirected to the endpoint', () => {
+        it('redirects to endpoint', () => {
           expect(redirectTo).toBe(
             `${issuer}/authorize?client_id=test-client-id&redirect_uri=${encodeURIComponent(
               window.location.href,
-            )}&state=${state}&nonce=stub-32&response_type=code&scope=scope1%20scope2&code_challenge=test-challenge`,
+            )}&nonce=stub-32&response_type=code&scope=scope1%20scope2&code_challenge=test-challenge`,
           );
         });
+        describe('with manual redirect', () => {
+          beforeEach(async () => {
+            try {
+              await unit.redirect();
+            } catch (e) {
+              error = e;
+            }
+          });
+          it('throws an error', () => {
+            expect(error).toEqual(new Error('Redirecting not allowed when provider requires authentication.'));
+          });
+        });
       });
+
+      describe('with state', () => {
+        beforeEach(() => {
+          pkceSource.create().returns({
+            challenge,
+            verifier,
+          });
+        });
+        describe('with required redirect', () => {
+          beforeEach(async () => {
+            unit.setRequired();
+            expect(
+              await unit.authorize({
+                state: state,
+              }),
+            ).toEqual(unit);
+          });
+
+          it('redirected to the endpoint', () => {
+            expect(redirectTo).toBe(
+              `${issuer}/authorize?client_id=test-client-id&redirect_uri=${encodeURIComponent(
+                window.location.href,
+              )}&state=${state}&nonce=stub-32&response_type=code&scope=scope1%20scope2&code_challenge=test-challenge`,
+            );
+          });
+        });
+
+        describe('with manual redirect', () => {
+          beforeEach(async () => {
+            expect(await unit.authorize()).toEqual(unit);
+
+            try {
+              await unit.redirect({
+                state: state,
+              });
+            } catch (e) {
+              error = e;
+            }
+          });
+          it('redirected to the endpoint', () => {
+            expect(redirectTo).toBe(
+              `${issuer}/authorize?client_id=test-client-id&redirect_uri=${encodeURIComponent(
+                window.location.href,
+              )}&state=${state}&nonce=stub-32&response_type=code&scope=scope1%20scope2&code_challenge=test-challenge`,
+            );
+          });
+        });
+      });
+
       describe('with post binding', () => {
         let form: HTMLFormElement;
         beforeEach(() => {
@@ -290,6 +361,7 @@ describe('AuthKit', () => {
         });
         describe('minimal params', () => {
           beforeEach(async () => {
+            unit.setRequired();
             expect(
               await unit.authorize({
                 binding: 'post',

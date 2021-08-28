@@ -32,6 +32,8 @@ interface IAuthKit {
   authorize(params?: IAuthorizeParams): Promise<IAuthKit>;
   getTokens(): Optional<Tokens>;
   getUserinfo(): Optional<IUserinfo>;
+  setRequired(): void;
+  redirect(): Promise<void>;
 }
 
 const storageFlowKey = 'authkit.storage.flow';
@@ -71,7 +73,7 @@ class AuthKit implements IAuthKit {
   public refreshLimit: number = -1;
 
   // Visible for testing
-  public redirect: (url: string) => void = redirectDefault;
+  public local_redirect: (url: string) => void = redirectDefault;
 
   // Visible for testing
   public submitForm: (form: HTMLFormElement) => void = submitFormDefault;
@@ -82,6 +84,7 @@ class AuthKit implements IAuthKit {
   private pkceSource: PkceSource;
   private tokens?: Tokens;
   private userinfo?: IUserinfo;
+  private requireAuthentication?: boolean;
 
   private bindings: Map<
     string,
@@ -98,7 +101,7 @@ class AuthKit implements IAuthKit {
 
     this.bindings.set('get', async (storage: IStorage, state: Optional<string>, extensions: Optional<any>) => {
       const p = this.params!;
-      this.redirect(
+      this.local_redirect(
         `${p.issuer}/authorize?client_id=${p.clientId}&redirect_uri=${encodeURIComponent(
           storage.thisUri,
         )}${((): string => {
@@ -182,14 +185,37 @@ class AuthKit implements IAuthKit {
     }
 
     const storage = await this.createAndStoreStorage();
-    const binding = this.bindings.get(params.binding || 'get');
-    if (!binding) {
-      throw new Error(`Invalid binding ${params.binding}`);
+    if (this.requireAuthentication) {
+      const binding = this.bindings.get(params.binding || 'get');
+      if (!binding) {
+        throw new Error(`Invalid binding ${params.binding}`);
+      }
+      await binding(storage, params.state, params.extensions);
     }
-    await binding(storage, params.state, params.extensions);
     return Promise.resolve(this);
   }
 
+  public async redirect(params: IAuthorizeParams = {}): Promise<void> {
+    if (this.requireAuthentication) {
+      throw new Error('Redirecting not allowed when provider requires authentication.');
+    }
+
+    const storage: Optional<IStorage> = await this.getStorage();
+    if (!storage) {
+      throw new Error('Storage has not been created');
+    }
+
+    const binding = this.bindings.get(params.binding || 'get');
+    if (!binding) {
+      throw new Error(`Invalid binding get`);
+    }
+
+    await binding(storage, params.state, params.extensions);
+  }
+
+  public setRequired(): void {
+    this.requireAuthentication = true;
+  }
   private stringFromQuery(q: queryString.ParsedQuery<string>, name: string): string | undefined {
     const raw = q[name];
 
