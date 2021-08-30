@@ -73,7 +73,7 @@ class AuthKit implements IAuthKit {
   public refreshLimit: number = -1;
 
   // Visible for testing
-  public local_redirect: (url: string) => void = redirectDefault;
+  public localRedirect: (url: string) => void = redirectDefault;
 
   // Visible for testing
   public submitForm: (form: HTMLFormElement) => void = submitFormDefault;
@@ -101,7 +101,7 @@ class AuthKit implements IAuthKit {
 
     this.bindings.set('get', async (storage: IStorage, state: Optional<string>, extensions: Optional<any>) => {
       const p = this.params!;
-      this.local_redirect(
+      this.localRedirect(
         `${p.issuer}/authorize?client_id=${p.clientId}&redirect_uri=${encodeURIComponent(
           storage.thisUri,
         )}${((): string => {
