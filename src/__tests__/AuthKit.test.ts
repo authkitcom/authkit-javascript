@@ -101,7 +101,7 @@ describe('AuthKit', () => {
     const $unit = new AuthKit(params(), pkceSource);
     $unit.randomString = (length: number) => `stub-${length}`;
     $unit.getQuery = () => query;
-    $unit.local_redirect = (url: string) => (redirectTo = url);
+    $unit.localRedirect = (url: string) => (redirectTo = url);
     $unit.refreshLimit = 3;
     return $unit;
   };
