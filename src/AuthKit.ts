@@ -1,5 +1,7 @@
+import { Mutex } from 'async-mutex';
 import axios from 'axios';
 import * as queryString from 'query-string';
+
 import { Optional } from './Lang';
 import { IPkce, PkceSource } from './Pkce';
 import { Tokens } from './Tokens';
@@ -89,7 +91,10 @@ class AuthKit implements IAuthKit {
     (storage: IStorage, state: Optional<string>, extensions: Optional<any>) => Promise<void>
   >;
 
+  private mutex: Mutex;
+
   constructor(params: ICreateParams, pkceSource: PkceSource) {
+    this.mutex = new Mutex();
     this.params = params;
     this.pkceSource = pkceSource;
     this.bindings = new Map<
@@ -163,36 +168,41 @@ class AuthKit implements IAuthKit {
   }
 
   public async authorize(params: IAuthorizeParams = {}): Promise<IAuthKit> {
-    if (await this.loadFromStorage()) {
-      return Promise.resolve(this);
-    }
 
-    const q = queryString.parse(this.getQuery());
-    const code = this.stringFromQuery(q, codeKey);
-    const errorCategory = this.stringFromQuery(q, errorCategoryKey);
-    const errorDescription = this.stringFromQuery(q, errorDescriptionKey) || '';
+    return await this.mutex.runExclusive(async () => {
 
-    if (errorCategory) {
-      this.tokens = undefined;
-      const $storage = await this.getStorage();
-      if ($storage?.thisUri) {
-        window.history.pushState('page', '', $storage.thisUri);
+      if (await this.loadFromStorage()) {
+        return Promise.resolve(this);
       }
-      throw new Error(`[${errorCategory}] ${errorDescription}`);
-    }
 
-    if (code) {
-      await this.loadFromCode(code);
+      const q = queryString.parse(this.getQuery());
+      const code = this.stringFromQuery(q, codeKey);
+      const errorCategory = this.stringFromQuery(q, errorCategoryKey);
+      const errorDescription = this.stringFromQuery(q, errorDescriptionKey) || '';
+
+      if (errorCategory) {
+        this.tokens = undefined;
+        const $storage = await this.getStorage();
+        if ($storage?.thisUri) {
+          window.history.pushState('page', '', $storage.thisUri);
+        }
+        throw new Error(`[${errorCategory}] ${errorDescription}`);
+      }
+
+      if (code) {
+        await this.loadFromCode(code);
+        return Promise.resolve(this);
+      }
+
+      const storage = await this.createAndStoreStorage();
+      const binding = this.bindings.get(params.binding || 'get');
+      if (!binding) {
+        throw new Error(`Invalid binding ${params.binding}`);
+      }
+      await binding(storage, params.state, params.extensions);
       return Promise.resolve(this);
-    }
-
-    const storage = await this.createAndStoreStorage();
-    const binding = this.bindings.get(params.binding || 'get');
-    if (!binding) {
-      throw new Error(`Invalid binding ${params.binding}`);
-    }
-    await binding(storage, params.state, params.extensions);
-    return Promise.resolve(this);
+    });
+    
   }
 
   private stringFromQuery(q: queryString.ParsedQuery<string>, name: string): string | undefined {
