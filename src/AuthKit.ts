@@ -168,9 +168,7 @@ class AuthKit implements IAuthKit {
   }
 
   public async authorize(params: IAuthorizeParams = {}): Promise<IAuthKit> {
-
     return await this.mutex.runExclusive(async () => {
-
       if (await this.loadFromStorage()) {
         return Promise.resolve(this);
       }
@@ -202,7 +200,6 @@ class AuthKit implements IAuthKit {
       await binding(storage, params.state, params.extensions);
       return Promise.resolve(this);
     });
-    
   }
 
   private stringFromQuery(q: queryString.ParsedQuery<string>, name: string): string | undefined {
