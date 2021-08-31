@@ -188,6 +188,7 @@ class AuthKit implements IAuthKit {
       throw new Error(`Invalid binding ${params.binding}`);
     }
     await binding(storage, params.state, params.extensions);
+
     return Promise.resolve(this);
   }
 
