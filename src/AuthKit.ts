@@ -30,6 +30,7 @@ interface IUserinfo {
 
 interface IAuthKit {
   authorize(params?: IAuthorizeParams): Promise<IAuthKit>;
+  isAuthenticated(): boolean;
   getTokens(): Optional<Tokens>;
   getUserinfo(): Optional<IUserinfo>;
 }
@@ -147,6 +148,10 @@ class AuthKit implements IAuthKit {
 
       this.submitForm(form);
     });
+  }
+
+  public isAuthenticated(): boolean {
+    return this.tokens ? true : false;
   }
 
   public getTokens(): Optional<Tokens> {
