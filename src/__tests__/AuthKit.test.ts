@@ -64,6 +64,8 @@ describe('AuthKit', () => {
 
   const sub = 'test-sub';
   const lastName = 'test-lastname';
+  const sub2 = 'test-sub-2';
+  const lastName2 = 'test-lastname-2';
 
   const tokens = {
     accessToken,
@@ -82,6 +84,11 @@ describe('AuthKit', () => {
   const userinfo: IUserinfo = {
     lastName,
     sub,
+  };
+
+  const userinfo2: IUserinfo = {
+    lastName: lastName2,
+    sub: sub2,
   };
 
   let pkceSource: SubstituteOf<PkceSource>;
@@ -130,6 +137,42 @@ describe('AuthKit', () => {
       });
       it('does not push state', () => {
         expect(pushStateMock.mock.calls.length).toBe(0);
+      });
+    });
+  });
+
+  describe('Manually set tokens', () => {
+    beforeEach(() => {
+      mockAxios.get.mockResolvedValue({
+        data: userinfo2,
+      });
+    });
+    describe('tokens and userinfo already in storage', () => {
+      beforeEach(async () => {
+        expect(unit.getTokens()).toBeUndefined();
+        expect(await unit.setTokens(tokens)).toBeUndefined();
+        mockAxios.get.mockResolvedValue({
+          data: userinfo,
+        });
+        expect(await unit.setTokens(tokens2)).toBeUndefined();
+      });
+      it('updates tokens', () => {
+        expect(unit.getTokens()).toEqual(tokens2);
+      });
+      it('does not update userinfo', () => {
+        expect(unit.getUserinfo()).toEqual(userinfo2);
+      });
+    });
+    describe('userinfo and tokens not in storage', () => {
+      beforeEach(async () => {
+        expect(unit.getTokens()).toBeUndefined();
+        expect(await unit.setTokens(tokens)).toBeUndefined();
+      });
+      it('sets tokens', () => {
+        expect(unit.getTokens()).toEqual(tokens);
+      });
+      it('sets userinfo', () => {
+        expect(unit.getUserinfo()).toEqual(userinfo2);
       });
     });
   });
@@ -438,8 +481,8 @@ describe('AuthKit', () => {
         it('throws an error', () => {
           expect(error).toEqual(new Error(`[${errorCategory}] ${errorDescription}`));
         });
-        it('sets authentication to undefined', async () => {
-          expect(await unit.getTokens()).toBeUndefined();
+        it('sets authentication to undefined', () => {
+          expect(unit.getTokens()).toBeUndefined();
         });
         it('makes call to token endpoint', async () => {
           expect(mockAxios.post).toHaveBeenCalledWith(

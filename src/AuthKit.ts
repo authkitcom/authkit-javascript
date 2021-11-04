@@ -30,6 +30,8 @@ interface IUserinfo {
 
 interface IAuthKit {
   authorize(params?: IAuthorizeParams): Promise<IAuthKit>;
+  isAuthenticated(): boolean;
+  setTokens(tokens: Tokens): Promise<void>;
   getTokens(): Optional<Tokens>;
   getUserinfo(): Optional<IUserinfo>;
 }
@@ -149,6 +151,10 @@ class AuthKit implements IAuthKit {
     });
   }
 
+  public isAuthenticated(): boolean {
+    return this.tokens ? true : false;
+  }
+
   public getTokens(): Optional<Tokens> {
     return this.tokens;
   }
@@ -188,6 +194,16 @@ class AuthKit implements IAuthKit {
     }
     await binding(storage, params.state, params.extensions);
     return Promise.resolve(this);
+  }
+
+  public async setTokens(tokens: Tokens): Promise<void> {
+    this.tokens = tokens;
+    await this.loadUserinfo();
+    if (this.userinfo) {
+      this.finalStorage(this.tokens, this.userinfo);
+    } else {
+      throw new Error('User info not available');
+    }
   }
 
   private stringFromQuery(q: queryString.ParsedQuery<string>, name: string): string | undefined {
