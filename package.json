@@ -1,7 +1,7 @@
 {
   "name": "@authkitcom/core",
   "private": false,
-  "version": "0.12.1",
+  "version": "0.13.1",
   "description": "Core javascript AuthKit library",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -47,6 +47,7 @@
   "dependencies": {
     "@types/crypto-js": "^3.1.43",
     "@types/randombytes": "^2.0.0",
+    "async-mutex": "^0.3.2",
     "axios": "^0.19.0",
     "crypto-js": "^3.1.9-1",
     "query-string": "^6.9.0",
