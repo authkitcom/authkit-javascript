@@ -220,7 +220,6 @@ class AuthKit implements IAuthKit {
         Accept: 'application/json',
       },
     });
-    console.log({ resp });
     if (resp.data.success) {
       sessionStorage.removeItem(storageTokensKey);
       sessionStorage.removeItem(storageUserinfoKey);
