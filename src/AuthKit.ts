@@ -32,6 +32,7 @@ interface IUserinfo {
 
 interface IAuthKit {
   authorize(params?: IAuthorizeParams): Promise<IAuthKit>;
+  logout(): Promise<boolean>;
   isAuthenticated(): boolean;
   setTokens(tokens: Tokens): Promise<void>;
   getTokens(): Optional<Tokens>;
@@ -211,6 +212,23 @@ class AuthKit implements IAuthKit {
     } else {
       throw new Error('User info not available');
     }
+  }
+
+  public async logout(): Promise<boolean> {
+    const resp = await axios.post(this.params!.issuer + '/logout', {
+      headers: {
+        Accept: 'application/json',
+      },
+    });
+    console.log({ resp });
+    if (resp.data.success) {
+      sessionStorage.removeItem(storageTokensKey);
+      sessionStorage.removeItem(storageUserinfoKey);
+    } else {
+      return false;
+    }
+
+    return true;
   }
 
   private stringFromQuery(q: queryString.ParsedQuery<string>, name: string): string | undefined {

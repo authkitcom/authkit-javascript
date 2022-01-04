@@ -637,4 +637,45 @@ describe('AuthKit', () => {
       });
     });
   });
+  describe('logout', () => {
+    beforeEach(() => {
+      mockAxios.post.mockReset();
+      pushStateMock.mockReset();
+      sessionStorage.__STORE__[storageTokensKey] = JSON.stringify(tokens);
+    });
+    describe('without success', () => {
+      beforeEach(async () => {
+        mockAxios.post.mockResolvedValue({
+          data: {
+            success: false,
+          },
+        });
+        try {
+          expect(await unit.logout()).toEqual(false);
+        } catch (e) {
+          error = e;
+        }
+      });
+      it('keeps tokens in storage', () => {
+        expect(sessionStorage.__STORE__[storageTokensKey]).toEqual(JSON.stringify(tokens));
+      });
+    });
+    describe('with success', () => {
+      beforeEach(async () => {
+        mockAxios.post.mockResolvedValue({
+          data: {
+            success: true,
+          },
+        });
+        try {
+          expect(await unit.logout()).toEqual(true);
+        } catch (e) {
+          error = e;
+        }
+      });
+      it('removes tokens in storage', () => {
+        expect(sessionStorage.__STORE__[storageTokensKey]).toBeUndefined();
+      });
+    });
+  });
 });
