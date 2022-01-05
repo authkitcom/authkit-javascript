@@ -215,7 +215,7 @@ class AuthKit implements IAuthKit {
   }
 
   public async logout(): Promise<boolean> {
-    const resp = await axios.post(this.params!.issuer + '/logout', {
+    const resp = await axios.post(this.params!.issuer + `/logout?client_id=${this.params!.clientId}`, {
       headers: {
         Accept: 'application/json',
       },
