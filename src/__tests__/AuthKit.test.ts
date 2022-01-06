@@ -637,16 +637,23 @@ describe('AuthKit', () => {
       });
     });
   });
-  /*describe('logout', () => {
-    const logoutUrl = `${issuer}?logout?redirect_to=/`;
+  describe('logout', () => {
+    const logoutUrl = `${issuer}/logout?return_to=/`;
     const oldWL = window.location;
+
+    beforeAll(() => {
+      Object.defineProperty(window, 'location', {
+        configurable: true,
+        value: { replace: jest.fn() },
+      });
+    });
+    afterAll(() => {
+      Object.defineProperty(window, 'location', { configurable: true, value: oldWL });
+    });
     beforeEach(() => {
       window.location.replace = jest.fn();
       sessionStorage.__STORE__[storageTokensKey] = JSON.stringify(tokens);
       unit.logout('/');
-    });
-    afterEach(() => {
-      window.location = oldWL;
     });
 
     it('removes tokens in storage', () => {
@@ -656,5 +663,5 @@ describe('AuthKit', () => {
       expect(window.location.replace).toHaveBeenCalledTimes(1);
       expect(window.location.replace).toHaveBeenCalledWith(logoutUrl);
     });
-  });*/
+  });
 });
