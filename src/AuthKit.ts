@@ -32,7 +32,7 @@ interface IUserinfo {
 
 interface IAuthKit {
   authorize(params?: IAuthorizeParams): Promise<IAuthKit>;
-  logout(): Promise<boolean>;
+  logout(returnTo: string): void;
   isAuthenticated(): boolean;
   setTokens(tokens: Tokens): Promise<void>;
   getTokens(): Optional<Tokens>;
@@ -214,20 +214,10 @@ class AuthKit implements IAuthKit {
     }
   }
 
-  public async logout(): Promise<boolean> {
-    const resp = await axios.post(this.params!.issuer + `/logout?client_id=${this.params!.clientId}`, {
-      headers: {
-        Accept: 'application/json',
-      },
-    });
-    if (resp.data.success) {
-      sessionStorage.removeItem(storageTokensKey);
-      sessionStorage.removeItem(storageUserinfoKey);
-    } else {
-      return false;
-    }
-
-    return true;
+  public logout(returnTo: string): void {
+    sessionStorage.removeItem(storageTokensKey);
+    sessionStorage.removeItem(storageUserinfoKey);
+    window.location.replace(this.params!.issuer + `/logout?return_to=${returnTo}`);
   }
 
   private stringFromQuery(q: queryString.ParsedQuery<string>, name: string): string | undefined {
