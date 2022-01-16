@@ -217,6 +217,7 @@ class AuthKit implements IAuthKit {
   public logout(returnTo: string): void {
     sessionStorage.removeItem(storageTokensKey);
     sessionStorage.removeItem(storageUserinfoKey);
+    sessionStorage.removeItem(storageFlowKey);
     window.location.replace(this.params!.issuer + `/logout?return_to=${returnTo}`);
   }
 
