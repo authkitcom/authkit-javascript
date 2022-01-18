@@ -36,6 +36,7 @@ interface IAuthKit {
   isAuthenticated(): boolean;
   setTokens(tokens: Tokens): Promise<void>;
   getTokens(): Optional<Tokens>;
+  removeTokens(): void;
   getUserinfo(): Optional<IUserinfo>;
 }
 
