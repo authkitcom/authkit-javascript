@@ -308,16 +308,36 @@ describe('AuthKit', () => {
             verifier,
           });
           expect(
-            await unit.authorize({
-              state,
-            }),
+              await unit.authorize({
+                state,
+              }),
           ).toEqual(unit);
         });
         it('redirected to the endpoint', () => {
           expect(redirectTo).toBe(
-            `${issuer}/authorize?client_id=test-client-id&redirect_uri=${encodeURIComponent(
-              window.location.href,
-            )}&state=${state}&nonce=stub-32&response_type=code&scope=scope1%20scope2&code_challenge=test-challenge`,
+              `${issuer}/authorize?client_id=test-client-id&redirect_uri=${encodeURIComponent(
+                  window.location.href,
+              )}&state=${state}&nonce=stub-32&response_type=code&scope=scope1%20scope2&code_challenge=test-challenge`,
+          );
+        });
+      });
+      describe('with redirectUri', () => {
+        beforeEach(async () => {
+          pkceSource.create().returns({
+            challenge,
+            verifier,
+          });
+          expect(
+              await unit.authorize({
+                redirectUri,
+              }),
+          ).toEqual(unit);
+        });
+        it('redirected to the endpoint', () => {
+          expect(redirectTo).toBe(
+              `${issuer}/authorize?client_id=test-client-id&redirect_uri=${encodeURIComponent(
+                  redirectUri,
+              )}&nonce=stub-32&response_type=code&scope=scope1%20scope2&code_challenge=test-challenge`,
           );
         });
       });
@@ -343,22 +363,6 @@ describe('AuthKit', () => {
           it('performs a form post', () => {
             expect(form.method).toEqual('post');
             expect(form.action).toEqual(`${issuer}/authorize`);
-
-            /*
-            expect(form).toHaveFormValues({
-              client_id: clientId,
-            });
-            */
-            /*
-        addField('redirect_uri', storage.thisUri)
-        if (state) {
-          addField('state', state);
-        }
-        addField('nonce', storage.nonce);
-        addField('response_type', 'code');
-        addField('scope', p.scope.join(' '))
-        addField('code_challenge', storage.pkce.challenge)
-        */
           });
         });
       });
@@ -634,49 +638,6 @@ describe('AuthKit', () => {
           it('leaves userinfo to storage', () => {
             expect(sessionStorage.__STORE__[storageUserinfoKey]).toEqual(JSON.stringify(userinfo));
           });
-        });
-      });
-      describe('with redirectUri', () => {
-        beforeEach(async () => {
-          mockAxios.post.mockResolvedValue({
-            data: {
-              access_token: accessToken,
-              id_token: idToken,
-              expires_in: expiresIn,
-              refresh_token: refreshToken,
-              token_type: 'bearer',
-            },
-          });
-          mockAxios.get.mockResolvedValue({
-            data: userinfo,
-          });
-          try {
-            await unit.authorize({
-              redirectUri
-            });
-          } catch (e) {
-            error = e;
-          }
-        });
-        it('makes call to token endpoint', async () => {
-          expect(mockAxios.post).toHaveBeenCalledWith(
-              issuer + '/oauth/token',
-              queryString.stringify({
-                client_id: clientId,
-                code,
-                code_verifier: verifier,
-                grant_type: 'authorization_code',
-                redirect_uri: redirectUri,
-              }),
-              {
-                adapter: require('axios/lib/adapters/xhr'),
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-              },
-          );
-        });
-        it('pushes state to stored uri', () => {
-          expect(pushStateMock.mock.calls.length).toBe(1);
-          expect(pushStateMock.mock.calls[0][2]).toBe(redirectUri);
         });
       });
     });

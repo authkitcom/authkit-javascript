@@ -200,15 +200,11 @@ class AuthKit implements IAuthKit {
       }
 
       if (code) {
-        if(params.redirectUri) {
-          await this.loadFromCode(code, params.redirectUri);
-        } else {
           await this.loadFromCode(code);
-        }
         return Promise.resolve(this);
       }
 
-      const storage = await this.createAndStoreStorage();
+      const storage = await this.createAndStoreStorage(params.redirectUri);
       const binding = this.bindings.get(params.binding || 'get');
       if (!binding) {
         throw new Error(`Invalid binding ${params.binding}`);
@@ -242,14 +238,13 @@ class AuthKit implements IAuthKit {
     return undefined;
   }
 
-  private async loadFromCode(code: string, redirectUri?: string) {
+  private async loadFromCode(code: string) {
     const storage = await this.getStorage();
 
     if (!storage) {
       throw new Error('Nothing in storage');
     }
 
-    const uri = redirectUri ? redirectUri : storage.thisUri;
     const res = await axios.post(
       this.params!.issuer + '/oauth/token',
       queryString.stringify({
@@ -257,7 +252,7 @@ class AuthKit implements IAuthKit {
         code,
         code_verifier: storage.pkce.verifier,
         grant_type: 'authorization_code',
-        redirect_uri: uri,
+        redirect_uri: storage.thisUri,
       }),
       {
         adapter: require('axios/lib/adapters/xhr'),
@@ -270,7 +265,7 @@ class AuthKit implements IAuthKit {
     try {
       await this.processTokenResponse(resp);
     } finally {
-      window.history.pushState('page', '', uri);
+      window.history.pushState('page', '', storage.thisUri);
     }
   }
 
@@ -356,11 +351,15 @@ class AuthKit implements IAuthKit {
     return JSON.parse(raw);
   }
 
-  private async createAndStoreStorage(): Promise<IStorage> {
+  private async createAndStoreStorage(redirectUri?: string): Promise<IStorage> {
     let thisUri = window.location.href;
+    if(redirectUri) {
+      thisUri = redirectUri;
+    }
     if (thisUri.indexOf('#') > 0) {
       thisUri = thisUri.substring(0, thisUri.indexOf('#'));
     }
+
     const storage: IStorage = {
       nonce: this.randomString(32),
       pkce: this.pkceSource.create(),
