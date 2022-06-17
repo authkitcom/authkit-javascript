@@ -17,6 +17,7 @@ interface IAuthorizeParams {
   stateReturn?: (state: string) => void;
   binding?: string;
   extensions?: any;
+  redirectUri?: string;
 }
 interface IStorage {
   thisUri: string;
@@ -199,7 +200,11 @@ class AuthKit implements IAuthKit {
       }
 
       if (code) {
-        await this.loadFromCode(code);
+        if(params.redirectUri) {
+          await this.loadFromCode(code, params.redirectUri);
+        } else {
+          await this.loadFromCode(code);
+        }
         return Promise.resolve(this);
       }
 
@@ -237,13 +242,14 @@ class AuthKit implements IAuthKit {
     return undefined;
   }
 
-  private async loadFromCode(code: string) {
+  private async loadFromCode(code: string, redirectUri?: string) {
     const storage = await this.getStorage();
 
     if (!storage) {
       throw new Error('Nothing in storage');
     }
 
+    const uri = redirectUri ? redirectUri : storage.thisUri;
     const res = await axios.post(
       this.params!.issuer + '/oauth/token',
       queryString.stringify({
@@ -251,7 +257,7 @@ class AuthKit implements IAuthKit {
         code,
         code_verifier: storage.pkce.verifier,
         grant_type: 'authorization_code',
-        redirect_uri: storage.thisUri,
+        redirect_uri: uri,
       }),
       {
         adapter: require('axios/lib/adapters/xhr'),
@@ -264,7 +270,7 @@ class AuthKit implements IAuthKit {
     try {
       await this.processTokenResponse(resp);
     } finally {
-      window.history.pushState('page', '', storage.thisUri);
+      window.history.pushState('page', '', uri);
     }
   }
 
