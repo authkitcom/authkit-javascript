@@ -2,9 +2,9 @@ import { Substitute, SubstituteOf } from '@fluffy-spoon/substitute';
 import axios from 'axios';
 import 'jest-localstorage-mock';
 import * as queryString from 'query-string';
-import { Optional } from '../Lang';
-import { PkceSource } from '../Pkce';
-import { ICreateParams, IUserinfo, randomStringDefault, AuthKit } from '../AuthKit';
+import { Optional } from '../src/Lang';
+import { PkceSource } from '../src/Pkce';
+import { ICreateParams, IUserinfo, randomStringDefault, AuthKit } from '../src/AuthKit';
 import '@testing-library/jest-dom';
 
 jest.mock('axios');
@@ -27,7 +27,7 @@ describe('randomStringDefault', () => {
     const results = new Map<string, boolean>();
     const iterations = 1000;
     for (let i = 0; i < iterations; i++) {
-      let s = randomStringDefault(32);
+      const s = randomStringDefault(32);
       expect(s).toMatch(/^[A-Za-z0-9]{32}$/);
       results.set(s, true);
     }
@@ -95,7 +95,7 @@ describe('AuthKit', () => {
   let pkceSource: SubstituteOf<PkceSource>;
 
   let unit: AuthKit;
-  let error: Optional<Error>;
+  let error: Optional<Error | unknown>;
 
   const params = (): ICreateParams => {
     return {
@@ -308,16 +308,16 @@ describe('AuthKit', () => {
             verifier,
           });
           expect(
-              await unit.authorize({
-                state,
-              }),
+            await unit.authorize({
+              state,
+            }),
           ).toEqual(unit);
         });
         it('redirected to the endpoint', () => {
           expect(redirectTo).toBe(
-              `${issuer}/authorize?client_id=test-client-id&redirect_uri=${encodeURIComponent(
-                  window.location.href,
-              )}&state=${state}&nonce=stub-32&response_type=code&scope=scope1%20scope2&code_challenge=test-challenge`,
+            `${issuer}/authorize?client_id=test-client-id&redirect_uri=${encodeURIComponent(
+              window.location.href,
+            )}&state=${state}&nonce=stub-32&response_type=code&scope=scope1%20scope2&code_challenge=test-challenge`,
           );
         });
       });
@@ -328,16 +328,16 @@ describe('AuthKit', () => {
             verifier,
           });
           expect(
-              await unit.authorize({
-                redirectUri,
-              }),
+            await unit.authorize({
+              redirectUri,
+            }),
           ).toEqual(unit);
         });
         it('redirected to the endpoint', () => {
           expect(redirectTo).toBe(
-              `${issuer}/authorize?client_id=test-client-id&redirect_uri=${encodeURIComponent(
-                  redirectUri,
-              )}&nonce=stub-32&response_type=code&scope=scope1%20scope2&code_challenge=test-challenge`,
+            `${issuer}/authorize?client_id=test-client-id&redirect_uri=${encodeURIComponent(
+              redirectUri,
+            )}&nonce=stub-32&response_type=code&scope=scope1%20scope2&code_challenge=test-challenge`,
           );
         });
       });

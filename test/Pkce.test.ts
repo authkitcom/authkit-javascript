@@ -1,4 +1,4 @@
-import { IPkce, PkceSource } from '../Pkce';
+import { IPkce, PkceSource } from '../src/Pkce';
 
 describe('PckeSource', () => {
   it('generates unique and correct strings', () => {

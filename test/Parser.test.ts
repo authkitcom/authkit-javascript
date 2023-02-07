@@ -1,4 +1,4 @@
-import { jwtParser } from '../Parser';
+import { jwtParser } from '../src/Parser';
 
 describe('jwtParser', () => {
   const parameters = [

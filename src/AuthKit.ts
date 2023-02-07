@@ -75,7 +75,7 @@ class AuthKit implements IAuthKit {
   public getQuery: () => string = getQueryDefault;
 
   // Visible for testing
-  public refreshLimit: number = -1;
+  public refreshLimit = -1;
 
   // Visible for testing
   public redirect: (url: string) => void = redirectDefault;
@@ -200,7 +200,7 @@ class AuthKit implements IAuthKit {
       }
 
       if (code) {
-          await this.loadFromCode(code);
+        await this.loadFromCode(code);
         return Promise.resolve(this);
       }
 
@@ -296,7 +296,7 @@ class AuthKit implements IAuthKit {
     // seconds -> milliseconds
     const interval = (that.tokens!.expiresIn - 30) * 1000;
 
-    setTimeout(async function refresh() {
+    setTimeout(async () => {
       if (that.refreshLimit === -1 || that.refreshLimit >= that.refreshCount) {
         await that.refresh(that);
         that.refreshCount++;
@@ -345,7 +345,7 @@ class AuthKit implements IAuthKit {
 
   private async getStorage(): Promise<Optional<IStorage>> {
     const raw = sessionStorage.getItem(storageFlowKey);
-    if (raw == null) {
+    if (raw === null) {
       return undefined;
     }
     return JSON.parse(raw);
@@ -353,7 +353,7 @@ class AuthKit implements IAuthKit {
 
   private async createAndStoreStorage(redirectUri?: string): Promise<IStorage> {
     let thisUri = window.location.href;
-    if(redirectUri) {
+    if (redirectUri) {
       thisUri = redirectUri;
     }
     if (thisUri.indexOf('#') > 0) {
