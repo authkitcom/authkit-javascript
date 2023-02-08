@@ -1,5 +1,7 @@
 import { IAuthorizeParams } from './Types';
 import { AuthKit } from './AuthKit';
+import { Tokens } from '../build/src';
+import { ITokens } from './Tokens';
 
 export interface IUserinfo {
   sub: string;
@@ -16,7 +18,7 @@ export interface IAuthentication {
 
   // Default - sessionStorage, else refresh token, else prompt=none (silent), else error
   // RedirectOnAunathenticated - same as above, but trigger reidrect if not authenticated
-  getTokens(params?: IGetTokensParams): Promise<Tokens>;
+  getTokens(params?: IGetTokensParams): Promise<ITokens>;
   isAuthenticated(): boolean;
   getUserinfo(): Promise<IUserinfo>;
 }

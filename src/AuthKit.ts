@@ -131,11 +131,11 @@ export class AuthKit implements IAuthKit {
   }
   private async authorizeFromCodeParams(code: string): Promise<Optional<IAuthenticationState>> {
     const convState = this.readStateFromStorage<IConversationState>();
-
     return undefined;
   }
 
   private readStateFromStorage<T>(): Optional<T> {
+    // TODO - how to determine if it is expired?
     const state = this.storage.getItem(storageAuthenticationKey);
     if (!state) {
       return undefined;
@@ -171,3 +171,4 @@ function makeId(length: number) {
   }
   return result;
 }
+
