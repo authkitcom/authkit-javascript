@@ -1,6 +1,5 @@
 import { IAuthorizeParams } from './Types';
 import { AuthKit } from './AuthKit';
-import { Tokens } from '../build/src';
 import { ITokens } from './Tokens';
 
 export interface IUserinfo {
@@ -25,7 +24,7 @@ export interface IAuthentication {
 
 export interface IAuthenticationState {
   userinfo?: IUserinfo;
-  tokens?: Tokens;
+  tokens?: ITokens;
 }
 
 export class Authentication implements IAuthentication {
@@ -43,7 +42,7 @@ export class Authentication implements IAuthentication {
     return this.state;
   }
 
-  public async getTokens(params?: IGetTokensParams): Promise<Tokens> {
+  public async getTokens(params?: IGetTokensParams): Promise<ITokens> {
     return {
       expiresIn: 0,
     };

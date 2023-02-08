@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const Pkce_1 = require("../src/Pkce");
 describe('PckeSource', () => {
-    it('generates unique and correct strings', () => {
+    test('generates unique and correct strings', () => {
         const unit = new Pkce_1.PkceSource();
         const iterations = 1000;
         const entires = new Map();
@@ -11,7 +11,7 @@ describe('PckeSource', () => {
         }
         expect(entires.size).toBe(iterations);
     });
-    it('generates a correct pair', () => {
+    test('generates a correct pair', () => {
         const unit = new Pkce_1.PkceSource();
         unit.randomBuffer = () => {
             return Buffer.from('test-verifier');

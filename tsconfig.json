@@ -3,10 +3,14 @@
   "compilerOptions": {
     "rootDir": ".",
     "outDir": "build",
-    "lib": ["DOM"]
+    "lib": ["DOM"],
+    "allowJs": true
   },
   "include": [
     "src/**/*.ts",
     "test/**/*.ts"
+  ],
+  "exclude": [
+    "build",
   ]
 }

@@ -3,8 +3,11 @@ interface IPkce {
     challenge: string;
     verifier: string;
 }
-declare class PkceSource {
+interface IPkceSource {
+    create(): IPkce;
+}
+declare class PkceSource implements IPkceSource {
     randomBuffer(): Buffer;
     create(): IPkce;
 }
-export { IPkce, PkceSource };
+export { IPkce, IPkceSource, PkceSource };

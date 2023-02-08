@@ -1,8 +1,8 @@
 import { Mock } from 'moq.ts';
 import { AuthKit, ICreateParams } from '../src/AuthKit';
-import { IStorage } from '../src/Types';
 import { Optional } from '../src/Lang';
 import { IPkceSource } from '../src/Pkce';
+import { IStorage } from '../src/Types';
 
 describe('AuthKit', () => {
   const clientId = 'test-client-id';
