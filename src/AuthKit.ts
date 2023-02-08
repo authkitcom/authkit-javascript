@@ -1,392 +1,173 @@
-import { Mutex } from 'async-mutex';
-import axios from 'axios';
-import * as queryString from 'query-string';
+import { Authentication, IAuthentication, IAuthenticationState } from './Authentication';
 
 import { Optional } from './Lang';
-import { IPkce, PkceSource } from './Pkce';
-import { Tokens } from './Tokens';
+import { IPkceSource } from './Pkce';
+import { IAuthorizeParams, IStorage } from './Types';
+import { IAuthorizeUrlParams, makeAuthorizeUrl } from './Urls';
 
-interface ICreateParams {
+export interface ICreateParams {
   issuer: string;
   clientId: string;
-  scope: string[];
+  redirectHandler?: (uri: string) => void;
 }
 
-interface IAuthorizeParams {
-  state?: string;
-  stateReturn?: (state: string) => void;
-  binding?: string;
-  extensions?: any;
-  redirectUri?: string;
+export interface IAuthKit {
+  // Default - read from session storage, else redirect
+  // Optional - true - reads from sessions storage, else do a prompt=none (silent), else unathenticated return
+  authorize(params?: IAuthorizeParams): Promise<Optional<IAuthentication>>;
 }
-interface IStorage {
-  thisUri: string;
+
+const storageConversationKey = '__authkit.storage.conversation';
+const storageAuthenticationKey = '__authkit.storage.authentication';
+
+interface IConversationState {
   nonce: string;
-  pkce: IPkce;
-  state?: string;
+  codeVerifier: string;
 }
 
-interface IUserinfo {
-  sub: string;
-  [x: string]: any;
-}
-
-interface IAuthKit {
-  authorize(params?: IAuthorizeParams): Promise<IAuthKit>;
-  logout(returnTo: string): void;
-  isAuthenticated(): boolean;
-  setTokens(tokens: Tokens): Promise<void>;
-  getTokens(): Optional<Tokens>;
-  removeTokens(): void;
-  getUserinfo(): Optional<IUserinfo>;
-}
-
-const storageFlowKey = 'authkit.storage.flow';
-const storageTokensKey = 'authkit.storage.tokens';
-const storageUserinfoKey = 'authkit.storage.userinfo';
-
-const codeKey = 'code';
-const errorCategoryKey = 'error';
-const errorDescriptionKey = 'error_description';
-
-const randomStringDefault = (length: number): string => {
-  let result = '';
-  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  const charactersLength = characters.length;
-  for (let i = 0; i < length; i++) {
-    result += characters.charAt(Math.floor(Math.random() * charactersLength));
+export class AuthKit implements IAuthKit {
+  private readonly issuer: string;
+  private readonly clientId: string;
+  private readonly redirectHandler?: (url: string) => void;
+  public constructor(
+    params: ICreateParams,
+    private readonly storage: IStorage,
+    private readonly pkceSource: IPkceSource,
+    private readonly queryParamSupplier: (name: string) => Optional<string>,
+  ) {
+    this.issuer = params.issuer;
+    this.clientId = params.clientId;
+    this.redirectHandler = params.redirectHandler;
   }
-  return result;
-};
 
-const getQueryDefault = (): string => location.search;
-const submitFormDefault = (form: HTMLFormElement): void => {
-  form.submit();
-};
-const redirectDefault = (url: string): void => {
-  window.location.assign(url);
-};
+  public randomString(length: number): string {
+    return makeId(length);
+  }
 
-class AuthKit implements IAuthKit {
-  // Visible for testing
-  public randomString: (length: number) => string = randomStringDefault;
+  public async authorize(params?: IAuthorizeParams): Promise<Optional<IAuthentication>> {
+    let authState = this.readStateFromStorage<IAuthenticationState>();
+    if (authState) {
+      // TODO - wire up redirect handlers
+      return this.makeAuthentication(authState);
+    }
 
-  // Visible for testing
-  public getQuery: () => string = getQueryDefault;
+    authState = await this.authorizeFromCode(params?.stateReturnHandler);
 
-  // Visible for testing
-  public refreshLimit = -1;
+    if (authState) {
+      return this.makeAuthentication(authState);
+    }
 
-  // Visible for testing
-  public redirect: (url: string) => void = redirectDefault;
-
-  // Visible for testing
-  public submitForm: (form: HTMLFormElement) => void = submitFormDefault;
-
-  private refreshCount = 0;
-
-  private params: ICreateParams;
-  private pkceSource: PkceSource;
-  private tokens?: Tokens;
-  private userinfo?: IUserinfo;
-
-  private bindings: Map<
-    string,
-    (storage: IStorage, state: Optional<string>, extensions: Optional<any>) => Promise<void>
-  >;
-
-  private mutex: Mutex;
-
-  constructor(params: ICreateParams, pkceSource: PkceSource) {
-    this.mutex = new Mutex();
-    this.params = params;
-    this.pkceSource = pkceSource;
-    this.bindings = new Map<
-      string,
-      (storage: IStorage, state: Optional<string>, extensions: Optional<any>) => Promise<void>
-    >();
-
-    this.bindings.set('get', async (storage: IStorage, state: Optional<string>, extensions: Optional<any>) => {
-      const p = this.params!;
-      this.redirect(
-        `${p.issuer}/authorize?client_id=${p.clientId}&redirect_uri=${encodeURIComponent(
-          storage.thisUri,
-        )}${((): string => {
-          if (state) {
-            return `&state=${state}`;
-          } else {
-            return '';
-          }
-        })()}&nonce=${storage.nonce}&response_type=code&scope=${encodeURIComponent(
-          p.scope.join(' '),
-        )}&code_challenge=${encodeURIComponent(storage.pkce.challenge)}`,
-      );
-    });
-
-    // TODO - Need some unit tesing around this
-    this.bindings.set('post', async (storage: IStorage, state: Optional<string>, extensions: Optional<any>) => {
-      const p = this.params!;
-
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = `${p.issuer}/authorize`;
-      form.style.display = 'none';
-
-      const addField = (name: string, value: string) => {
-        const f = document.createElement('input');
-        f.type = 'hidden';
-        f.name = name;
-        f.value = value;
-        form.appendChild(f);
+    // See if we have a code
+    let aParams: any = {
+      clientId: this.clientId,
+      issuer: this.issuer,
+    };
+    // Handle code return
+    let redirectHandler = this.redirectHandler;
+    if (params) {
+      if (params.redirectHandler) {
+        redirectHandler = params.redirectHandler;
+      }
+      aParams = {
+        ...aParams,
+        redirectUri: params.redirectUri,
+        scope: params.scope ? params.scope.join(' ') : undefined,
+        state: params.state,
       };
-
-      addField('client_id', p.clientId);
-      addField('redirect_uri', storage.thisUri);
-      if (state) {
-        addField('state', state);
-      }
-      addField('nonce', storage.nonce);
-      addField('response_type', 'code');
-      addField('scope', p.scope.join(' '));
-      addField('code_challenge', storage.pkce.challenge);
-      if (extensions) {
-        addField('extensions', JSON.stringify(extensions));
-      }
-
-      document.body.appendChild(form);
-
-      this.submitForm(form);
-    });
-  }
-
-  public isAuthenticated(): boolean {
-    return this.tokens ? true : false;
-  }
-
-  public getTokens(): Optional<Tokens> {
-    return this.tokens;
-  }
-
-  public removeTokens(): void {
-    sessionStorage.removeItem(storageTokensKey);
-    sessionStorage.removeItem(storageUserinfoKey);
-    sessionStorage.removeItem(storageFlowKey);
-    this.tokens = undefined;
-    this.userinfo = undefined;
-  }
-
-  public getUserinfo(): Optional<IUserinfo> {
-    return this.userinfo;
-  }
-
-  public async authorize(params: IAuthorizeParams = {}): Promise<IAuthKit> {
-    return await this.mutex.runExclusive(async () => {
-      if (await this.loadFromStorage()) {
-        return Promise.resolve(this);
-      }
-
-      const q = queryString.parse(this.getQuery());
-      const code = this.stringFromQuery(q, codeKey);
-      const errorCategory = this.stringFromQuery(q, errorCategoryKey);
-      const errorDescription = this.stringFromQuery(q, errorDescriptionKey) || '';
-
-      if (errorCategory) {
-        this.tokens = undefined;
-        const $storage = await this.getStorage();
-        if ($storage?.thisUri) {
-          window.history.pushState('page', '', $storage.thisUri);
-        }
-        throw new Error(`[${errorCategory}] ${errorDescription}`);
-      }
-
-      if (code) {
-        await this.loadFromCode(code);
-        return Promise.resolve(this);
-      }
-
-      const storage = await this.createAndStoreStorage(params.redirectUri);
-      const binding = this.bindings.get(params.binding || 'get');
-      if (!binding) {
-        throw new Error(`Invalid binding ${params.binding}`);
-      }
-      await binding(storage, params.state, params.extensions);
-      return Promise.resolve(this);
-    });
-  }
-
-  public async setTokens(tokens: Tokens): Promise<void> {
-    this.tokens = tokens;
-    await this.loadUserinfo();
-    if (this.userinfo) {
-      this.finalStorage(this.tokens, this.userinfo);
-    } else {
-      throw new Error('User info not available');
+    }
+    switch (params?.mode || 'Redirect') {
+      case 'Silent':
+        return this.authorizeWithIFrame({
+          ...aParams,
+          prompt: 'none',
+          responseMode: 'web_message',
+        });
+      case 'Redirect':
+        await this.authorizeRedirect(aParams, redirectHandler);
+        return undefined;
     }
   }
 
-  public logout(returnTo: string): void {
-    this.removeTokens();
-    window.location.replace(this.params!.issuer + `/logout?return_to=${returnTo}`);
+  public async authorizeFromCode(
+    stateReturnHandler?: (state: string) => void,
+  ): Promise<Optional<IAuthenticationState>> {
+    const code = this.queryParamSupplier('code');
+    const state = this.queryParamSupplier('state');
+    if (!code) {
+      return undefined;
+    }
+    const auth = await this.authorizeFromCodeParams(code);
+    if (auth && state && stateReturnHandler) {
+      stateReturnHandler(state);
+    }
+    return auth;
   }
 
-  private stringFromQuery(q: queryString.ParsedQuery<string>, name: string): string | undefined {
-    const raw = q[name];
+  public async authorizeWithIFrame(params: IAuthorizeUrlParams): Promise<Optional<IAuthentication>> {
+    throw new Error('support this');
+  }
 
-    if (typeof raw === 'string') {
-      return raw;
+  public async authorizeRedirect(params: IAuthorizeUrlParams, redirectHandler?: (uri: string) => void) {
+    if (!redirectHandler) {
+      throw new Error('redirect handler not provided');
     }
+
+    const nonce = this.randomString(32);
+    const pkce = this.pkceSource.create();
+
+    const state = {
+      codeVerifier: pkce.verifier,
+      nonce,
+    };
+
+    this.writeConversationStateToStorage(state);
+
+    redirectHandler(
+      makeAuthorizeUrl({
+        ...params,
+        codeChallenge: pkce.challenge,
+      }),
+    );
+  }
+  private async authorizeFromCodeParams(code: string): Promise<Optional<IAuthenticationState>> {
+    const convState = this.readStateFromStorage<IConversationState>();
+
     return undefined;
   }
 
-  private async loadFromCode(code: string) {
-    const storage = await this.getStorage();
-
-    if (!storage) {
-      throw new Error('Nothing in storage');
-    }
-
-    const res = await axios.post(
-      this.params!.issuer + '/oauth/token',
-      queryString.stringify({
-        client_id: this.params.clientId,
-        code,
-        code_verifier: storage.pkce.verifier,
-        grant_type: 'authorization_code',
-        redirect_uri: storage.thisUri,
-      }),
-      {
-        adapter: require('axios/lib/adapters/xhr'),
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      },
-    );
-
-    const resp = res.data;
-
-    try {
-      await this.processTokenResponse(resp);
-    } finally {
-      window.history.pushState('page', '', storage.thisUri);
-    }
-  }
-
-  private async processTokenResponse(resp: any) {
-    if (resp.error) {
-      this.tokens = undefined;
-      throw new Error(`[${resp.error}] ${resp.error_description}`);
-    }
-
-    if (resp.access_token) {
-      this.tokens = {
-        accessToken: resp.access_token,
-        expiresIn: resp.expires_in,
-        idToken: resp.id_token,
-        refreshToken: resp.refresh_token,
-      };
-      // Only need to load this once
-      if (!this.userinfo) {
-        await this.loadUserinfo();
-      }
-      await this.finalStorage(this.tokens!, this.userinfo!);
-
-      this.refreshLoop(this);
-    }
-  }
-
-  private refreshLoop(that: AuthKit) {
-    // seconds -> milliseconds
-    const interval = (that.tokens!.expiresIn - 30) * 1000;
-
-    setTimeout(async () => {
-      if (that.refreshLimit === -1 || that.refreshLimit >= that.refreshCount) {
-        await that.refresh(that);
-        that.refreshCount++;
-      }
-    }, interval);
-  }
-
-  private async refresh(that: AuthKit) {
-    const res = await axios.post(
-      that.params!.issuer + '/oauth/token',
-      queryString.stringify({
-        grant_type: 'refresh_token',
-        refresh_token: that.tokens!.refreshToken,
-      }),
-      {
-        adapter: require('axios/lib/adapters/xhr'),
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      },
-    );
-
-    const resp = res.data;
-
-    that.processTokenResponse(resp);
-  }
-
-  private async loadUserinfo(): Promise<void> {
-    if (this.userinfo) {
-      return;
-    }
-
-    if (!this.tokens) {
-      throw new Error('Not authenticated');
-    }
-
-    const resp = await axios.get(
-      this.params!.issuer + '/userinfo?client_id=' + encodeURIComponent(this.params.clientId),
-      {
-        headers: {
-          Authorization: 'Bearer ' + this.tokens.accessToken,
-        },
-      },
-    );
-
-    this.userinfo = resp.data;
-  }
-
-  private async getStorage(): Promise<Optional<IStorage>> {
-    const raw = sessionStorage.getItem(storageFlowKey);
-    if (raw === null) {
+  private readStateFromStorage<T>(): Optional<T> {
+    const state = this.storage.getItem(storageAuthenticationKey);
+    if (!state) {
       return undefined;
-    }
-    return JSON.parse(raw);
-  }
-
-  private async createAndStoreStorage(redirectUri?: string): Promise<IStorage> {
-    let thisUri = window.location.href;
-    if (redirectUri) {
-      thisUri = redirectUri;
-    }
-    if (thisUri.indexOf('#') > 0) {
-      thisUri = thisUri.substring(0, thisUri.indexOf('#'));
-    }
-
-    const storage: IStorage = {
-      nonce: this.randomString(32),
-      pkce: this.pkceSource.create(),
-      thisUri,
-    };
-    sessionStorage.setItem(storageFlowKey, JSON.stringify(storage));
-    return storage;
-  }
-
-  private async finalStorage(authentication: Tokens, userinfo: IUserinfo) {
-    sessionStorage.setItem(storageTokensKey, JSON.stringify(authentication));
-    sessionStorage.setItem(storageUserinfoKey, JSON.stringify(userinfo));
-    sessionStorage.removeItem(storageFlowKey);
-  }
-
-  private async loadFromStorage(): Promise<boolean> {
-    const authString = sessionStorage.getItem(storageTokensKey);
-    const userinfoString = sessionStorage.getItem(storageUserinfoKey);
-    if (authString && userinfoString) {
-      this.tokens = JSON.parse(authString);
-      this.userinfo = JSON.parse(userinfoString);
-      this.refreshLoop(this);
-      return true;
     } else {
-      return false;
+      return JSON.parse(state);
     }
+  }
+
+  private writeAuthenticationStateToStorage(state: IAuthenticationState) {
+    this.storage.setItem(storageAuthenticationKey, JSON.stringify(state));
+  }
+
+  private writeConversationStateToStorage(state: IConversationState) {
+    this.storage.setItem(storageConversationKey, JSON.stringify(state));
+  }
+
+  private makeAuthentication(authState: IAuthenticationState): IAuthentication {
+    const result = new Authentication(this);
+    result.setState(authState);
+    return result;
   }
 }
 
-export { IAuthKit, IAuthorizeParams, ICreateParams, IUserinfo, AuthKit, randomStringDefault };
+// https://stackoverflow.com/a/1349426
+function makeId(length: number) {
+  let result = '';
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const charactersLength = characters.length;
+  let counter = 0;
+  while (counter < length) {
+    result += characters.charAt(Math.floor(Math.random() * charactersLength));
+    counter += 1;
+  }
+  return result;
+}

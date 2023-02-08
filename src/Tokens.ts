@@ -1,8 +1,8 @@
-class Tokens {
-  public accessToken?: string;
-  public idToken?: string;
-  public refreshToken?: string;
-  public expiresIn = 0;
+interface ITokens {
+  accessToken?: string;
+  idToken?: string;
+  refreshToken?: string;
+  expiresIn: number;
 }
 
-export { Tokens };
+export { ITokens };

@@ -1,7 +1,7 @@
 import { IPkce, PkceSource } from '../src/Pkce';
 
 describe('PckeSource', () => {
-  it('generates unique and correct strings', () => {
+  test('generates unique and correct strings', () => {
     const unit = new PkceSource();
     const iterations = 1000;
     const entires = new Map<IPkce, boolean>();
@@ -13,7 +13,7 @@ describe('PckeSource', () => {
     expect(entires.size).toBe(iterations);
   });
 
-  it('generates a correct pair', () => {
+  test('generates a correct pair', () => {
     const unit = new PkceSource();
 
     unit.randomBuffer = (): Buffer => {

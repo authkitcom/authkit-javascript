@@ -7,7 +7,11 @@ interface IPkce {
   verifier: string;
 }
 
-class PkceSource {
+interface IPkceSource {
+  create(): IPkce;
+}
+
+class PkceSource implements IPkceSource {
   public randomBuffer(): Buffer {
     return randombytes(32);
   }
@@ -30,4 +34,4 @@ function urlReplace(input: string) {
     .replace(/=/g, '');
 }
 
-export { IPkce, PkceSource };
+export { IPkce, IPkceSource, PkceSource };
