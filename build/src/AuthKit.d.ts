@@ -1,62 +1,32 @@
+import { IAuthentication, IAuthenticationState } from './Authentication';
 import { Optional } from './Lang';
-import { PkceSource } from './Pkce';
-import { Tokens } from './Tokens';
-interface ICreateParams {
+import { IPkceSource } from './Pkce';
+import { IAuthorizeParams, IStorage } from './Types';
+import { IAuthorizeUrlParams } from './Urls';
+export interface ICreateParams {
     issuer: string;
     clientId: string;
-    scope: string[];
+    redirectHandler?: (uri: string) => void;
 }
-interface IAuthorizeParams {
-    state?: string;
-    stateReturn?: (state: string) => void;
-    binding?: string;
-    extensions?: any;
-    redirectUri?: string;
+export interface IAuthKit {
+    authorize(params?: IAuthorizeParams): Promise<Optional<IAuthentication>>;
 }
-interface IUserinfo {
-    sub: string;
-    [x: string]: any;
+export declare class AuthKit implements IAuthKit {
+    private readonly storage;
+    private readonly pkceSource;
+    private readonly queryParamSupplier;
+    private readonly issuer;
+    private readonly clientId;
+    private readonly redirectHandler?;
+    constructor(params: ICreateParams, storage: IStorage, pkceSource: IPkceSource, queryParamSupplier: (name: string) => Optional<string>);
+    randomString(length: number): string;
+    authorize(params?: IAuthorizeParams): Promise<Optional<IAuthentication>>;
+    authorizeFromCode(stateReturnHandler?: (state: string) => void): Promise<Optional<IAuthenticationState>>;
+    authorizeWithIFrame(params: IAuthorizeUrlParams): Promise<Optional<IAuthentication>>;
+    authorizeRedirect(params: IAuthorizeUrlParams, redirectHandler?: (uri: string) => void): Promise<void>;
+    private authorizeFromCodeParams;
+    private readStateFromStorage;
+    private writeAuthenticationStateToStorage;
+    private writeConversationStateToStorage;
+    private makeAuthentication;
 }
-interface IAuthKit {
-    authorize(params?: IAuthorizeParams): Promise<IAuthKit>;
-    logout(returnTo: string): void;
-    isAuthenticated(): boolean;
-    setTokens(tokens: Tokens): Promise<void>;
-    getTokens(): Optional<Tokens>;
-    removeTokens(): void;
-    getUserinfo(): Optional<IUserinfo>;
-}
-declare const randomStringDefault: (length: number) => string;
-declare class AuthKit implements IAuthKit {
-    randomString: (length: number) => string;
-    getQuery: () => string;
-    refreshLimit: number;
-    redirect: (url: string) => void;
-    submitForm: (form: HTMLFormElement) => void;
-    private refreshCount;
-    private params;
-    private pkceSource;
-    private tokens?;
-    private userinfo?;
-    private bindings;
-    private mutex;
-    constructor(params: ICreateParams, pkceSource: PkceSource);
-    isAuthenticated(): boolean;
-    getTokens(): Optional<Tokens>;
-    removeTokens(): void;
-    getUserinfo(): Optional<IUserinfo>;
-    authorize(params?: IAuthorizeParams): Promise<IAuthKit>;
-    setTokens(tokens: Tokens): Promise<void>;
-    logout(returnTo: string): void;
-    private stringFromQuery;
-    private loadFromCode;
-    private processTokenResponse;
-    private refreshLoop;
-    private refresh;
-    private loadUserinfo;
-    private getStorage;
-    private createAndStoreStorage;
-    private finalStorage;
-    private loadFromStorage;
-}
-export { IAuthKit, IAuthorizeParams, ICreateParams, IUserinfo, AuthKit, randomStringDefault };
