@@ -11,6 +11,7 @@ export interface ICreateParams {
 export interface IAuthKit {
     authorize(params?: IAuthorizeParams): Promise<Optional<IAuthentication>>;
 }
+export declare type IQueryParamSupplier = (name: string) => Optional<string>;
 export declare class AuthKit implements IAuthKit {
     private readonly storage;
     private readonly pkceSource;
@@ -18,7 +19,7 @@ export declare class AuthKit implements IAuthKit {
     private readonly issuer;
     private readonly clientId;
     private readonly redirectHandler?;
-    constructor(params: ICreateParams, storage: IStorage, pkceSource: IPkceSource, queryParamSupplier: (name: string) => Optional<string>);
+    constructor(params: ICreateParams, storage: IStorage, pkceSource: IPkceSource, queryParamSupplier: IQueryParamSupplier);
     randomString(length: number): string;
     authorize(params?: IAuthorizeParams): Promise<Optional<IAuthentication>>;
     authorizeFromCode(stateReturnHandler?: (state: string) => void): Promise<Optional<IAuthenticationState>>;
