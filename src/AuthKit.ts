@@ -25,6 +25,8 @@ interface IConversationState {
   codeVerifier: string;
 }
 
+export type IQueryParamSupplier = (name: string) => Optional<string>;
+
 export class AuthKit implements IAuthKit {
   private readonly issuer: string;
   private readonly clientId: string;
@@ -33,7 +35,7 @@ export class AuthKit implements IAuthKit {
     params: ICreateParams,
     private readonly storage: IStorage,
     private readonly pkceSource: IPkceSource,
-    private readonly queryParamSupplier: (name: string) => Optional<string>,
+    private readonly queryParamSupplier: IQueryParamSupplier,
   ) {
     this.issuer = params.issuer;
     this.clientId = params.clientId;
@@ -171,4 +173,3 @@ function makeId(length: number) {
   }
   return result;
 }
-
