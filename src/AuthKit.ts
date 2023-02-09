@@ -1,8 +1,10 @@
 import { Authentication, IAuthentication, IAuthenticationState } from './Authentication';
 
+import { Api } from './Api';
 import { Optional } from './Lang';
 import { IPkceSource } from './Pkce';
-import { IAuthorizeParams, IStorage } from './Types';
+import { ITokens } from './Tokens';
+import { IAuthorizeParams, IRedirectHandler, IStorage } from './Types';
 import { IAuthorizeUrlParams, makeAuthorizeUrl } from './Urls';
 
 export interface ICreateParams {
@@ -12,8 +14,6 @@ export interface ICreateParams {
 }
 
 export interface IAuthKit {
-  // Default - read from session storage, else redirect
-  // Optional - true - reads from sessions storage, else do a prompt=none (silent), else unathenticated return
   authorize(params?: IAuthorizeParams): Promise<Optional<IAuthentication>>;
 }
 
@@ -23,6 +23,7 @@ const storageAuthenticationKey = '__authkit.storage.authentication';
 interface IConversationState {
   nonce: string;
   codeVerifier: string;
+  redirectUri?: string;
 }
 
 export type IQueryParamSupplier = (name: string) => Optional<string>;
@@ -33,6 +34,7 @@ export class AuthKit implements IAuthKit {
   private readonly redirectHandler?: (url: string) => void;
   public constructor(
     params: ICreateParams,
+    private readonly api: Api,
     private readonly storage: IStorage,
     private readonly pkceSource: IPkceSource,
     private readonly queryParamSupplier: IQueryParamSupplier,
@@ -46,17 +48,17 @@ export class AuthKit implements IAuthKit {
     return makeId(length);
   }
 
-  public async authorize(params?: IAuthorizeParams): Promise<Optional<IAuthentication>> {
-    let authState = this.readStateFromStorage<IAuthenticationState>();
+  public async authorize(params: IAuthorizeParams): Promise<Optional<IAuthentication>> {
+    const authState = this.readStateFromStorage<IAuthenticationState>(storageAuthenticationKey);
     if (authState) {
       // TODO - wire up redirect handlers
-      return this.makeAuthentication(authState);
+      return this.attemptMakeAuthentication(params, authState);
     }
 
-    authState = await this.authorizeFromCode(params?.stateReturnHandler);
+    const auth = await this.authorizeAndStoreFromCode(params);
 
-    if (authState) {
-      return this.makeAuthentication(authState);
+    if (auth) {
+      return auth;
     }
 
     // See if we have a code
@@ -77,35 +79,37 @@ export class AuthKit implements IAuthKit {
         state: params.state,
       };
     }
-    switch (params?.mode || 'Redirect') {
-      case 'Silent':
-        return this.authorizeWithIFrame({
-          ...aParams,
-          prompt: 'none',
-          responseMode: 'web_message',
-        });
-      case 'Redirect':
+
+    switch (params?.mode || 'redirect') {
+      case 'silent':
+        return this.makeAuthenticationFromTokens(
+          params,
+          await this.attemptAuthorizeWithIFrame({
+            ...aParams,
+            prompt: 'none',
+            responseMode: 'web_message',
+          }),
+        );
+      case 'redirect':
         await this.authorizeRedirect(aParams, redirectHandler);
         return undefined;
     }
   }
 
-  public async authorizeFromCode(
-    stateReturnHandler?: (state: string) => void,
-  ): Promise<Optional<IAuthenticationState>> {
+  public async authorizeAndStoreFromCode(params: IAuthorizeParams): Promise<Optional<IAuthentication>> {
     const code = this.queryParamSupplier('code');
     const state = this.queryParamSupplier('state');
     if (!code) {
       return undefined;
     }
-    const auth = await this.authorizeFromCodeParams(code);
-    if (auth && state && stateReturnHandler) {
-      stateReturnHandler(state);
+    const auth = await this.makeAuthenticationFromTokens(params, await this.authorizeFromCodeParams(code));
+    if (auth && state && params.stateReturnHandler) {
+      params.stateReturnHandler(state);
     }
     return auth;
   }
 
-  public async authorizeWithIFrame(params: IAuthorizeUrlParams): Promise<Optional<IAuthentication>> {
+  public async attemptAuthorizeWithIFrame(params: IAuthorizeUrlParams): Promise<Optional<ITokens>> {
     throw new Error('support this');
   }
 
@@ -131,14 +135,49 @@ export class AuthKit implements IAuthKit {
       }),
     );
   }
-  private async authorizeFromCodeParams(code: string): Promise<Optional<IAuthenticationState>> {
-    const convState = this.readStateFromStorage<IConversationState>();
-    return undefined;
+
+  public newAuthentication(params: IAuthorizeParams, state: IAuthenticationState): Authentication {
+    return new Authentication(this, params, state);
   }
 
-  private readStateFromStorage<T>(): Optional<T> {
-    // TODO - how to determine if it is expired?
-    const state = this.storage.getItem(storageAuthenticationKey);
+  public async logout(redirectHandler?: IRedirectHandler): Promise<void> {
+    if (!redirectHandler) {
+      redirectHandler = this.redirectHandler;
+    }
+    if (!redirectHandler) {
+      throw new Error('redirect required and no redirect handler provided');
+    }
+    redirectHandler(this.issuer + '/logout');
+  }
+
+  public async attemptRefresh(refreshToken: string): Promise<Optional<ITokens>> {
+    return await this.api.refresh({
+      clientId: this.clientId,
+      refreshToken,
+    });
+  }
+
+  public makeStateFromTokens(tokens: ITokens): IAuthenticationState {
+    // 60 seconds grace period
+    return {
+      expiresIn: Date.now() + tokens.expiresIn - 60,
+      tokens,
+    };
+  }
+  private async authorizeFromCodeParams(code: string): Promise<Optional<ITokens>> {
+    const convState = this.readStateFromStorage<IConversationState>(storageConversationKey);
+    if (!convState) {
+      throw new Error('no stored conversation state');
+    }
+    return await this.api.getTokens({
+      clientId: this.clientId,
+      codeVerifier: convState.codeVerifier,
+      redirectUri: convState.redirectUri,
+    });
+  }
+
+  private readStateFromStorage<T>(key: string): Optional<T> {
+    const state = this.storage.getItem(key);
     if (!state) {
       return undefined;
     } else {
@@ -154,12 +193,38 @@ export class AuthKit implements IAuthKit {
     this.storage.setItem(storageConversationKey, JSON.stringify(state));
   }
 
-  private makeAuthentication(authState: IAuthenticationState): IAuthentication {
-    const result = new Authentication(this);
-    result.setState(authState);
-    return result;
+  private async attemptMakeAuthentication(
+    params: IAuthorizeParams,
+    state: IAuthenticationState,
+  ): Promise<Optional<IAuthentication>> {
+    const result = this.newAuthentication(params, state);
+    if (result.isAuthenticated()) {
+      return result;
+    }
+    const refreshToken = result.getRefreshToken();
+    if (refreshToken) {
+      return await this.makeAuthenticationFromTokens(params, await this.attemptRefresh(refreshToken));
+    }
+
+    return undefined;
+  }
+
+  private async makeAuthenticationFromTokens(
+    params: IAuthorizeParams,
+    tokens: Optional<ITokens>,
+  ): Promise<Optional<Authentication>> {
+    if (tokens) {
+      const state = this.makeStateFromTokens(tokens);
+      this.writeAuthenticationStateToStorage(state);
+      const auth = this.newAuthentication(params, state);
+      return auth;
+    } else {
+      return undefined;
+    }
   }
 }
+
+// Visible for testing
 
 // https://stackoverflow.com/a/1349426
 function makeId(length: number) {

@@ -6,7 +6,8 @@ const Urls_1 = require("./Urls");
 const storageConversationKey = '__authkit.storage.conversation';
 const storageAuthenticationKey = '__authkit.storage.authentication';
 class AuthKit {
-    constructor(params, storage, pkceSource, queryParamSupplier) {
+    constructor(params, api, storage, pkceSource, queryParamSupplier) {
+        this.api = api;
         this.storage = storage;
         this.pkceSource = pkceSource;
         this.queryParamSupplier = queryParamSupplier;
@@ -18,14 +19,14 @@ class AuthKit {
         return makeId(length);
     }
     async authorize(params) {
-        let authState = this.readStateFromStorage();
+        const authState = this.readStateFromStorage(storageAuthenticationKey);
         if (authState) {
             // TODO - wire up redirect handlers
-            return this.makeAuthentication(authState);
+            return this.attemptMakeAuthentication(params, authState);
         }
-        authState = await this.authorizeFromCode(params === null || params === void 0 ? void 0 : params.stateReturnHandler);
-        if (authState) {
-            return this.makeAuthentication(authState);
+        const auth = await this.authorizeAndStoreFromCode(params);
+        if (auth) {
+            return auth;
         }
         // See if we have a code
         let aParams = {
@@ -45,31 +46,31 @@ class AuthKit {
                 state: params.state,
             };
         }
-        switch ((params === null || params === void 0 ? void 0 : params.mode) || 'Redirect') {
-            case 'Silent':
-                return this.authorizeWithIFrame({
+        switch ((params === null || params === void 0 ? void 0 : params.mode) || 'redirect') {
+            case 'silent':
+                return this.makeAuthenticationFromTokens(params, await this.attemptAuthorizeWithIFrame({
                     ...aParams,
                     prompt: 'none',
                     responseMode: 'web_message',
-                });
-            case 'Redirect':
+                }));
+            case 'redirect':
                 await this.authorizeRedirect(aParams, redirectHandler);
                 return undefined;
         }
     }
-    async authorizeFromCode(stateReturnHandler) {
+    async authorizeAndStoreFromCode(params) {
         const code = this.queryParamSupplier('code');
         const state = this.queryParamSupplier('state');
         if (!code) {
             return undefined;
         }
-        const auth = await this.authorizeFromCodeParams(code);
-        if (auth && state && stateReturnHandler) {
-            stateReturnHandler(state);
+        const auth = await this.makeAuthenticationFromTokens(params, await this.authorizeFromCodeParams(code));
+        if (auth && state && params.stateReturnHandler) {
+            params.stateReturnHandler(state);
         }
         return auth;
     }
-    async authorizeWithIFrame(params) {
+    async attemptAuthorizeWithIFrame(params) {
         throw new Error('support this');
     }
     async authorizeRedirect(params, redirectHandler) {
@@ -88,13 +89,44 @@ class AuthKit {
             codeChallenge: pkce.challenge,
         }));
     }
-    async authorizeFromCodeParams(code) {
-        const convState = this.readStateFromStorage();
-        return undefined;
+    newAuthentication(params, state) {
+        return new Authentication_1.Authentication(this, params, state);
     }
-    readStateFromStorage() {
-        // TODO - how to determine if it is expired?
-        const state = this.storage.getItem(storageAuthenticationKey);
+    async logout(redirectHandler) {
+        if (!redirectHandler) {
+            redirectHandler = this.redirectHandler;
+        }
+        if (!redirectHandler) {
+            throw new Error('redirect required and no redirect handler provided');
+        }
+        redirectHandler(this.issuer + '/logout');
+    }
+    async attemptRefresh(refreshToken) {
+        return await this.api.refresh({
+            clientId: this.clientId,
+            refreshToken,
+        });
+    }
+    makeStateFromTokens(tokens) {
+        // 60 seconds grace period
+        return {
+            expiresIn: Date.now() + tokens.expiresIn - 60,
+            tokens,
+        };
+    }
+    async authorizeFromCodeParams(code) {
+        const convState = this.readStateFromStorage(storageConversationKey);
+        if (!convState) {
+            throw new Error('no stored conversation state');
+        }
+        return await this.api.getTokens({
+            clientId: this.clientId,
+            codeVerifier: convState.codeVerifier,
+            redirectUri: convState.redirectUri,
+        });
+    }
+    readStateFromStorage(key) {
+        const state = this.storage.getItem(key);
         if (!state) {
             return undefined;
         }
@@ -108,13 +140,31 @@ class AuthKit {
     writeConversationStateToStorage(state) {
         this.storage.setItem(storageConversationKey, JSON.stringify(state));
     }
-    makeAuthentication(authState) {
-        const result = new Authentication_1.Authentication(this);
-        result.setState(authState);
-        return result;
+    async attemptMakeAuthentication(params, state) {
+        const result = this.newAuthentication(params, state);
+        if (result.isAuthenticated()) {
+            return result;
+        }
+        const refreshToken = result.getRefreshToken();
+        if (refreshToken) {
+            return await this.makeAuthenticationFromTokens(params, await this.attemptRefresh(refreshToken));
+        }
+        return undefined;
+    }
+    async makeAuthenticationFromTokens(params, tokens) {
+        if (tokens) {
+            const state = this.makeStateFromTokens(tokens);
+            this.writeAuthenticationStateToStorage(state);
+            const auth = this.newAuthentication(params, state);
+            return auth;
+        }
+        else {
+            return undefined;
+        }
     }
 }
 exports.AuthKit = AuthKit;
+// Visible for testing
 // https://stackoverflow.com/a/1349426
 function makeId(length) {
     let result = '';

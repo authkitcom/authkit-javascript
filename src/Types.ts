@@ -1,10 +1,13 @@
-export type AuthorizeMode = 'Silent' | 'Redirect';
+export type AuthorizeMode = 'silent' | 'redirect';
+
+export type IRedirectHandler = (uri: string) => void;
+export type IStateReturnHandler = (uri: string) => void;
 
 export interface IAuthorizeParams {
   mode?: AuthorizeMode;
   state?: string;
-  redirectHandler?: (uri: string) => void;
-  stateReturnHandler?: (state: string) => void;
+  redirectHandler?: IRedirectHandler;
+  stateReturnHandler?: IStateReturnHandler;
   redirectUri?: string;
   scope: string[];
 }
