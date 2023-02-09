@@ -20,7 +20,7 @@ export interface IAuthKit {
 const storageConversationKey = '__authkit.storage.conversation';
 const storageAuthenticationKey = '__authkit.storage.authentication';
 
-interface IConversationState {
+export interface IConversationState {
   nonce: string;
   codeVerifier: string;
   redirectUri?: string;
@@ -68,19 +68,17 @@ export class AuthKit implements IAuthKit {
     };
     // Handle code return
     let redirectHandler = this.redirectHandler;
-    if (params) {
-      if (params.redirectHandler) {
-        redirectHandler = params.redirectHandler;
-      }
-      aParams = {
-        ...aParams,
-        redirectUri: params.redirectUri,
-        scope: params.scope ? params.scope.join(' ') : undefined,
-        state: params.state,
-      };
+    if (params.redirectHandler) {
+      redirectHandler = params.redirectHandler;
     }
+    aParams = {
+      ...aParams,
+      redirectUri: params.redirectUri,
+      scope: params.scope ? params.scope.join(' ') : undefined,
+      state: params.state,
+    };
 
-    switch (params?.mode || 'redirect') {
+    switch (params.mode || 'redirect') {
       case 'silent':
         return this.makeAuthenticationFromTokens(
           params,
@@ -102,7 +100,8 @@ export class AuthKit implements IAuthKit {
     if (!code) {
       return undefined;
     }
-    const auth = await this.makeAuthenticationFromTokens(params, await this.authorizeFromCodeParams(code));
+    const tokens = await this.authorizeFromCodeParams(code);
+    const auth = await this.makeAuthenticationFromTokens(params, tokens);
     if (auth && state && params.stateReturnHandler) {
       params.stateReturnHandler(state);
     }

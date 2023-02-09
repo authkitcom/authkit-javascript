@@ -1,16 +1,21 @@
-import { IMock, Mock } from 'moq.ts';
+import { IMock, It, Mock } from 'moq.ts';
 import { Authentication, IAuthenticationState } from '../src/Authentication';
-import { AuthKit, ICreateParams, IQueryParamSupplier } from '../src/AuthKit';
+import { AuthKit, IConversationState, ICreateParams, IQueryParamSupplier } from '../src/AuthKit';
 import { IPkceSource } from '../src/Pkce';
 import { IAuthorizeParams, IStorage } from '../src/Types';
-import { Api } from '../src/Api';
+import { Api, IGetTokensRequest } from '../src/Api';
+import { ITokens } from '../src/Tokens';
 
+const authenticationKey = '__authkit.storage.authentication';
+const conversationKey = '__authkit.storage.conversation';
 describe('AuthKit', () => {
   const clientId = 'test-client-id';
   const issuer = 'test-issuer';
   const accessToken = 'test-access-token';
   const code = 'test-code';
   const state = 'test-state';
+  const codeVerifier = 'test-verifier';
+  const nonce = 'test-nonce';
   const params: IAuthorizeParams = {
     scope: ['a'],
   };
@@ -20,6 +25,10 @@ describe('AuthKit', () => {
       accessToken,
       expiresIn: 123,
     },
+  };
+  const tokens: ITokens = {
+    accessToken,
+    expiresIn: 1234,
   };
   let sMock: IMock<IStorage>;
   let psMock: IMock<IPkceSource>;
@@ -41,6 +50,11 @@ describe('AuthKit', () => {
     apMock = new Mock<Api>();
   });
   describe('authorize', () => {
+    const conversationState: IConversationState = {
+      codeVerifier,
+      nonce,
+    };
+    // TODO - test expired state
     test('state exists and authenticated', async () => {
       sMock = sMock.setup(i => i.getItem('__authkit.storage.authentication')).returns(JSON.stringify(stateExists));
       aMock = aMock.setup(i => i.isAuthenticated()).returns(true);
@@ -57,6 +71,30 @@ describe('AuthKit', () => {
         .returns(state);
       const unit = makeUnit({ clientId, issuer });
       await expect(async () => await unit.authorize(params)).rejects.toThrow(new Error('no stored conversation state'));
+    });
+    test('state not exists code passed with state success', async () => {
+      sMock = sMock
+        .setup(i => i.getItem(authenticationKey))
+        .returns(null)
+        .setup(i => i.getItem(conversationKey))
+        .returns(JSON.stringify(conversationState));
+      qpsMock = qpsMock
+        .setup(i => i('code'))
+        .returns(code)
+        .setup(i => i('state'))
+        .returns(state);
+      apMock = apMock
+        .setup(async i =>
+          i.getTokens(
+            It.Is<IGetTokensRequest>(r => {
+              return r.clientId === clientId && r.codeVerifier === codeVerifier;
+            }),
+          ),
+        )
+        .returnsAsync(tokens);
+      sMock = sMock.setup(i => i.setItem(authenticationKey, JSON.stringify(aMock.object()))).returns();
+      const unit = makeUnit({ clientId, issuer });
+      expect(await unit.authorize(params)).toBe(aMock.object());
     });
   });
 });
