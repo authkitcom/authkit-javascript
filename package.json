@@ -28,6 +28,7 @@
   "files": [
     "build/**/*"
   ],
+  "types": "build/src/index.d.ts",
   "keywords": [
     "auth",
     "oauth",
