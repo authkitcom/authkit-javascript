@@ -32,6 +32,9 @@ const authKit = createAuthKitForDOM({
   clientId: '9cc49356433b89a1bf244dd00cb34523', 
   issuer: 'https://mytenant.authkit.com',
   scope: ['email', 'profile', 'openid'],
+  redirectHandler: (uri: string) {
+    window.location.href = uri;
+  }
 });
 
 // Authorize
