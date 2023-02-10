@@ -26,8 +26,9 @@
     "url": "git@github.com:authkitcom/authkit-javascript.git"
   },
   "files": [
-    "lib/**/*"
+    "build/**/*"
   ],
+  "types": "build/src/index.d.ts",
   "keywords": [
     "auth",
     "oauth",

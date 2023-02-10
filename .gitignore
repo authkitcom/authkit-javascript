@@ -2,5 +2,5 @@ node_modules
 /lib
 .direnv
 .idea
-build
 coverage
+build

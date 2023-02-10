@@ -9,4 +9,4 @@ import { ITokens } from './Tokens';
 const createAuthKitForDOM = (params: ICreateParams): IAuthKit =>
   new AuthKit(params, new Api(params.issuer), sessionStorage, new PkceSource(), QueryParamSupplier, new IFrame());
 
-export { createAuthKitForDOM, IAuthKit, IAuthentication, ITokens };
+export { createAuthKitForDOM, IAuthKit, IAuthentication, ITokens, ICreateParams };
