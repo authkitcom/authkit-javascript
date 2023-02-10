@@ -6,11 +6,12 @@ const Urls_1 = require("./Urls");
 const storageConversationKey = '__authkit.storage.conversation';
 const storageAuthenticationKey = '__authkit.storage.authentication';
 class AuthKit {
-    constructor(params, api, storage, pkceSource, queryParamSupplier) {
+    constructor(params, api, storage, pkceSource, queryParamSupplier, iFrame) {
         this.api = api;
         this.storage = storage;
         this.pkceSource = pkceSource;
         this.queryParamSupplier = queryParamSupplier;
+        this.iFrame = iFrame;
         this.issuer = params.issuer;
         this.clientId = params.clientId;
         this.redirectHandler = params.redirectHandler;
@@ -20,11 +21,14 @@ class AuthKit {
     }
     async authorize(params) {
         const authState = this.readStateFromStorage(storageAuthenticationKey);
+        let auth;
         if (authState) {
             // TODO - wire up redirect handlers
-            return this.attemptMakeAuthentication(params, authState);
+            auth = await this.attemptMakeAuthentication(params, authState);
         }
-        const auth = await this.authorizeAndStoreFromCode(params);
+        else {
+            auth = await this.authorizeAndStoreFromCode(params);
+        }
         if (auth) {
             return auth;
         }
@@ -35,24 +39,18 @@ class AuthKit {
         };
         // Handle code return
         let redirectHandler = this.redirectHandler;
-        if (params) {
-            if (params.redirectHandler) {
-                redirectHandler = params.redirectHandler;
-            }
-            aParams = {
-                ...aParams,
-                redirectUri: params.redirectUri,
-                scope: params.scope ? params.scope.join(' ') : undefined,
-                state: params.state,
-            };
+        if (params.redirectHandler) {
+            redirectHandler = params.redirectHandler;
         }
-        switch ((params === null || params === void 0 ? void 0 : params.mode) || 'redirect') {
+        aParams = {
+            ...aParams,
+            redirectUri: params.redirectUri,
+            scope: params.scope ? params.scope.join(' ') : undefined,
+            state: params.state,
+        };
+        switch (params.mode || 'redirect') {
             case 'silent':
-                return this.makeAuthenticationFromTokens(params, await this.attemptAuthorizeWithIFrame({
-                    ...aParams,
-                    prompt: 'none',
-                    responseMode: 'web_message',
-                }));
+                return this.makeAuthenticationFromTokens(params, await this.attemptAuthorizeWithIFrame(aParams));
             case 'redirect':
                 await this.authorizeRedirect(aParams, redirectHandler);
                 return undefined;
@@ -64,14 +62,15 @@ class AuthKit {
         if (!code) {
             return undefined;
         }
-        const auth = await this.makeAuthenticationFromTokens(params, await this.authorizeFromCodeParams(code));
+        const tokens = await this.authorizeFromCodeParams(code);
+        const auth = await this.makeAuthenticationFromTokens(params, tokens);
         if (auth && state && params.stateReturnHandler) {
             params.stateReturnHandler(state);
         }
         return auth;
     }
     async attemptAuthorizeWithIFrame(params) {
-        throw new Error('support this');
+        return this.iFrame.getTokens(params);
     }
     async authorizeRedirect(params, redirectHandler) {
         if (!redirectHandler) {
@@ -85,8 +84,9 @@ class AuthKit {
         };
         this.writeConversationStateToStorage(state);
         redirectHandler((0, Urls_1.makeAuthorizeUrl)({
-            ...params,
+            clientId: this.clientId,
             codeChallenge: pkce.challenge,
+            issuer: this.issuer,
         }));
     }
     newAuthentication(params, state) {
