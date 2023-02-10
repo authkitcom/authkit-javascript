@@ -5,7 +5,8 @@ import { Optional } from './Lang';
 import { IPkceSource } from './Pkce';
 import { ITokens } from './Tokens';
 import { IAuthorizeParams, IRedirectHandler, IStorage } from './Types';
-import { IAuthorizeUrlParams, makeAuthorizeUrl } from './Urls';
+import { makeAuthorizeUrl } from './Urls';
+import { IFrame } from './IFrame';
 
 export interface ICreateParams {
   issuer: string;
@@ -38,6 +39,7 @@ export class AuthKit implements IAuthKit {
     private readonly storage: IStorage,
     private readonly pkceSource: IPkceSource,
     private readonly queryParamSupplier: IQueryParamSupplier,
+    private readonly iFrame: IFrame,
   ) {
     this.issuer = params.issuer;
     this.clientId = params.clientId;
@@ -50,12 +52,13 @@ export class AuthKit implements IAuthKit {
 
   public async authorize(params: IAuthorizeParams): Promise<Optional<IAuthentication>> {
     const authState = this.readStateFromStorage<IAuthenticationState>(storageAuthenticationKey);
+    let auth: Optional<IAuthentication>;
     if (authState) {
       // TODO - wire up redirect handlers
-      return this.attemptMakeAuthentication(params, authState);
+      auth = await this.attemptMakeAuthentication(params, authState);
+    } else {
+      auth = await this.authorizeAndStoreFromCode(params);
     }
-
-    const auth = await this.authorizeAndStoreFromCode(params);
 
     if (auth) {
       return auth;
@@ -80,14 +83,7 @@ export class AuthKit implements IAuthKit {
 
     switch (params.mode || 'redirect') {
       case 'silent':
-        return this.makeAuthenticationFromTokens(
-          params,
-          await this.attemptAuthorizeWithIFrame({
-            ...aParams,
-            prompt: 'none',
-            responseMode: 'web_message',
-          }),
-        );
+        return this.makeAuthenticationFromTokens(params, await this.attemptAuthorizeWithIFrame(aParams));
       case 'redirect':
         await this.authorizeRedirect(aParams, redirectHandler);
         return undefined;
@@ -108,11 +104,11 @@ export class AuthKit implements IAuthKit {
     return auth;
   }
 
-  public async attemptAuthorizeWithIFrame(params: IAuthorizeUrlParams): Promise<Optional<ITokens>> {
-    throw new Error('support this');
+  public async attemptAuthorizeWithIFrame(params: IAuthorizeParams): Promise<Optional<ITokens>> {
+    return this.iFrame.getTokens(params);
   }
 
-  public async authorizeRedirect(params: IAuthorizeUrlParams, redirectHandler?: (uri: string) => void) {
+  public async authorizeRedirect(params: IAuthorizeParams, redirectHandler?: (uri: string) => void) {
     if (!redirectHandler) {
       throw new Error('redirect handler not provided');
     }
@@ -129,8 +125,9 @@ export class AuthKit implements IAuthKit {
 
     redirectHandler(
       makeAuthorizeUrl({
-        ...params,
+        clientId: this.clientId,
         codeChallenge: pkce.challenge,
+        issuer: this.issuer,
       }),
     );
   }

@@ -2,7 +2,7 @@
 
 ## Overview
 
-The AuthKit Javascript library performs OAuth2 authentication 
+The AuthKit core JavaScript library.
 
 ## Install
 
@@ -18,7 +18,7 @@ Yarn:
 yarn add @authkitcom/core
 ```
 
-## Usage
+## Basic Usage
 
 To use the library, create and AuthKit object and call the authorize method.  If
 the user is not authenticated, they will be redirected to the authorize endpoint
@@ -26,19 +26,19 @@ first.
 
 ``` javascript
 
-import { Tokens, createAuthKit, jwtParser } from '@authkitcom/core';
+import { createAuthKitForDOM } from '@authkitcom/core';
 
-const authKit = createAuthKit({
-  clientId: '9cc49356-433b-49a1-bf24-4dd00cb34523', 
-  issuer: 'https://tenant.authkit.com',
+const authKit = createAuthKitForDOM({
+  clientId: '9cc49356433b89a1bf244dd00cb34523', 
+  issuer: 'https://mytenant.authkit.com',
   scope: ['email', 'profile', 'openid'],
 });
 
-const tokens = (await authKit.authorize()).getTokens();
+// Authorize
 
-const idFields = jwtParser(tokens.idToken);
+const auth = await authkit.authorize();
 
-console.log(idFields);
+const accessToken = await auth.getTokens().accessToken;
 
 ```
 
