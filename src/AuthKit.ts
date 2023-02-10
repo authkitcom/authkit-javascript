@@ -64,20 +64,14 @@ export class AuthKit implements IAuthKit {
       return auth;
     }
 
-    // See if we have a code
-    let aParams: any = {
-      clientId: this.clientId,
-      issuer: this.issuer,
-    };
     // Handle code return
     let redirectHandler = this.redirectHandler;
     if (params.redirectHandler) {
       redirectHandler = params.redirectHandler;
     }
-    aParams = {
-      ...aParams,
+    const aParams = {
       redirectUri: params.redirectUri,
-      scope: params.scope ? params.scope.join(' ') : undefined,
+      scope: params.scope,
       state: params.state,
     };
 
@@ -105,7 +99,11 @@ export class AuthKit implements IAuthKit {
   }
 
   public async attemptAuthorizeWithIFrame(params: IAuthorizeParams): Promise<Optional<ITokens>> {
-    return this.iFrame.getTokens(params);
+    return this.iFrame.getTokens({
+      clientId: this.clientId,
+      issuer: this.issuer,
+      scope: params.scope.join(' '),
+    });
   }
 
   public async authorizeRedirect(params: IAuthorizeParams, redirectHandler?: (uri: string) => void) {

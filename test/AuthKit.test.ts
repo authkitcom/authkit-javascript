@@ -1,17 +1,19 @@
+import * as _ from 'lodash';
 import { IMock, It, Mock } from 'moq.ts';
+import { ITokens } from '../src';
+import { Api, IGetTokensRequest } from '../src/Api';
 import { Authentication, IAuthenticationState } from '../src/Authentication';
 import { AuthKit, IConversationState, ICreateParams, IQueryParamSupplier } from '../src/AuthKit';
-import { IPkceSource } from '../src/Pkce';
-import { IAuthorizeParams, IStorage } from '../src/Types';
-import { Api, IGetTokensRequest } from '../src/Api';
-import { ITokens } from '../src/Tokens';
 import { IFrame } from '../src/IFrame';
+import { IPkce, IPkceSource } from '../src/Pkce';
+import { IAuthorizeParams, IRedirectHandler, IStorage } from '../src/Types';
+import { IAuthorizeUrlParams } from '../src/Urls';
 
 const authenticationKey = '__authkit.storage.authentication';
 const conversationKey = '__authkit.storage.conversation';
 describe('AuthKit', () => {
   const clientId = 'test-client-id';
-  const issuer = 'test-issuer';
+  const issuer = 'https://test-issuer';
   const accessToken = 'test-access-token';
   const code = 'test-code';
   const state = 'test-state';
@@ -31,12 +33,18 @@ describe('AuthKit', () => {
     accessToken,
     expiresIn: 1234,
   };
+  const pcke: IPkce = {
+    challenge: 'test-challenge',
+    verifier: 'test-verifier',
+  };
+  const randomString = 'random-string';
   let sMock: IMock<IStorage>;
   let psMock: IMock<IPkceSource>;
   let qpsMock: IMock<IQueryParamSupplier>;
   let apMock: IMock<Api>;
   let aMock: IMock<Authentication>;
   let ifMock: IMock<IFrame>;
+  let rhMock: IMock<IRedirectHandler>;
   const makeUnit = (createParams: ICreateParams): AuthKit => {
     const unit = new AuthKit(
       createParams,
@@ -49,6 +57,7 @@ describe('AuthKit', () => {
     unit.newAuthentication = (): Authentication => {
       return aMock.object();
     };
+    unit.randomString = () => randomString;
     return unit;
   };
   beforeEach(() => {
@@ -58,6 +67,7 @@ describe('AuthKit', () => {
     aMock = new Mock<Authentication>();
     apMock = new Mock<Api>();
     ifMock = new Mock<IFrame>();
+    rhMock = new Mock<IRedirectHandler>();
   });
   describe('authorize', () => {
     const conversationState: IConversationState = {
@@ -124,12 +134,55 @@ describe('AuthKit', () => {
       const unit = makeUnit({ clientId, issuer });
       expect(await unit.authorize(params)).toBe(aMock.object());
     });
-    test('state not exists no code passed silent not authentication', async () => {
+    test('state not exists no code passed silent not authenticated', async () => {
       sMock = sMock.setup(i => i.getItem(authenticationKey)).returns(null);
       qpsMock = qpsMock.setup(i => i('code')).returns(undefined);
-      ifMock = ifMock.setup(async i => i.getTokens(params)).returnsAsync(tokens);
+      ifMock = ifMock
+        .setup(async i =>
+          i.getTokens(
+            It.Is<IAuthorizeUrlParams>(r => {
+              return _.isEqual(r, { issuer, clientId, scope: 'a' });
+            }),
+          ),
+        )
+        .returnsAsync(tokens);
+      sMock = sMock
+        .setup(i =>
+          i.setItem(
+            authenticationKey,
+            It.Is<string>(r => {
+              const obj = JSON.parse(r);
+              return _.isEqual(obj.tokens, tokens) && obj.expiresIn > 0;
+            }),
+          ),
+        )
+        .returns();
       const unit = makeUnit({ clientId, issuer });
       expect(await unit.authorize({ mode: 'silent', ...params })).toBe(aMock.object());
+    });
+    test('state not exists no code passed redirect', async () => {
+      sMock = sMock.setup(i => i.getItem(authenticationKey)).returns(null);
+      qpsMock = qpsMock.setup(i => i('code')).returns(undefined);
+      psMock = psMock.setup(i => i.create()).returns(pcke);
+      sMock = sMock
+        .setup(i =>
+          i.setItem(
+            conversationKey,
+            It.Is<string>(r => {
+              const t = _.isEqual(JSON.parse(r), {
+                codeVerifier: pcke.verifier,
+                nonce: randomString,
+              });
+              return t;
+            }),
+          ),
+        )
+        .returns();
+      const unit = makeUnit({ clientId, issuer, redirectHandler: rhMock.object() });
+      expect(await unit.authorize(params)).toBeUndefined();
+      rhMock = rhMock.verify(i =>
+        i('https://test-issuer?client_id=test-client-id&code_challenge=test-challenge&code_challenge_method=S256'),
+      );
     });
   });
 });
