@@ -16,8 +16,8 @@ describe('PckeSource', () => {
   test('generates a correct pair', () => {
     const unit = new PkceSource();
 
-    unit.randomBuffer = (): Buffer => {
-      return Buffer.from('test-verifier');
+    unit.randomBuffer = (): string => {
+      return Buffer.from('test-verifier').toString('base64');
     };
 
     const result = unit.create();

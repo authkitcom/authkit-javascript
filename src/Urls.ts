@@ -13,7 +13,7 @@ export interface IAuthorizeUrlParams {
 export function makeAuthorizeUrl(params: IAuthorizeUrlParams): string {
   const sb: string[] = [];
   sb.push(params.issuer);
-  sb.push('?client_id=');
+  sb.push('/authorize?client_id=');
   sb.push(params.clientId);
   if (params.scope) {
     sb.push('&scope=');

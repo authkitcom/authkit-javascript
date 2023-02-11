@@ -1,6 +1,6 @@
+import * as Cryptojs from 'crypto-js';
 import { SHA256 } from 'crypto-js';
 import * as base64 from 'crypto-js/enc-base64';
-import * as randombytes from 'randombytes';
 
 interface IPkce {
   challenge: string;
@@ -12,12 +12,12 @@ interface IPkceSource {
 }
 
 class PkceSource implements IPkceSource {
-  public randomBuffer(): Buffer {
-    return randombytes(32);
+  public randomBuffer(): string {
+    return Cryptojs.lib.WordArray.random(32).toString(Cryptojs.enc.Base64);
   }
 
   public create(): IPkce {
-    const verifier = urlReplace(this.randomBuffer().toString('base64'));
+    const verifier = urlReplace(this.randomBuffer());
     const challenge = urlReplace(SHA256(verifier).toString(base64));
 
     return {

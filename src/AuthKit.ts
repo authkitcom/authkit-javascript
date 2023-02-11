@@ -15,7 +15,7 @@ export interface ICreateParams {
 }
 
 export interface IAuthKit {
-  authorize(params?: IAuthorizeParams): Promise<Optional<IAuthentication>>;
+  authorize(params: IAuthorizeParams): Promise<Optional<IAuthentication>>;
 }
 
 const storageConversationKey = '__authkit.storage.conversation';
@@ -59,11 +59,9 @@ export class AuthKit implements IAuthKit {
     } else {
       auth = await this.authorizeAndStoreFromCode(params);
     }
-
     if (auth) {
       return auth;
     }
-
     // Handle code return
     let redirectHandler = this.redirectHandler;
     if (params.redirectHandler) {
