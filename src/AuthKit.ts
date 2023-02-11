@@ -1,12 +1,12 @@
 import { Authentication, IAuthentication, IAuthenticationState } from './Authentication';
 
 import { Api } from './Api';
+import { IFrame } from './IFrame';
 import { Optional } from './Lang';
 import { IPkceSource } from './Pkce';
 import { ITokens } from './Tokens';
 import { IAuthorizeParams, IRedirectHandler, IStorage } from './Types';
 import { makeAuthorizeUrl } from './Urls';
-import { IFrame } from './IFrame';
 
 export interface ICreateParams {
   issuer: string;
@@ -158,6 +158,8 @@ export class AuthKit implements IAuthKit {
       tokens,
     };
   }
+  //TODO use code
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private async authorizeFromCodeParams(code: string): Promise<Optional<ITokens>> {
     const convState = this.readStateFromStorage<IConversationState>(storageConversationKey);
     if (!convState) {

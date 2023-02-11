@@ -1,11 +1,11 @@
 import { AuthKit } from './AuthKit';
+import { Optional } from './Lang';
 import { ITokens } from './Tokens';
 import { IAuthorizeParams, IRedirectHandler } from './Types';
-import { Optional } from './Lang';
 
 export interface IUserinfo {
   sub: string;
-  [x: string]: any;
+  [x: string]: unknown;
 }
 
 export interface IAuthentication {
@@ -30,6 +30,8 @@ export class Authentication implements IAuthentication {
     private state: IAuthenticationState,
   ) {}
 
+  //TODO use params
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public async getTokens(params?: IAuthorizeParams): Promise<ITokens> {
     if (this.isAuthenticated()) {
       return this.state.tokens!;

@@ -1,5 +1,5 @@
 // https://stackoverflow.com/a/38552302/9500527
-const jwtParser = (token: string): any => {
+const jwtParser = (token: string): string | object => {
   const parts = token.split('.');
   if (parts.length < 2) {
     return {};
