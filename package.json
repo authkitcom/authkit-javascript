@@ -3,8 +3,8 @@
   "private": false,
   "version": "1.0.0",
   "description": "Core javascript AuthKit library",
-  "main": "lib/index.js",
-  "types": "lib/index.d.ts",
+  "main": "lib/src/index.js",
+  "types": "lib/src/index.d.ts",
   "scripts": {
     "prepare": "yarn run compile",
     "prepublishOnly": "yarn test && yarn run lint",
@@ -26,9 +26,8 @@
     "url": "git@github.com:authkitcom/authkit-javascript.git"
   },
   "files": [
-    "build/**/*"
+    "lib/**/*"
   ],
-  "types": "build/src/index.d.ts",
   "keywords": [
     "auth",
     "oauth",
