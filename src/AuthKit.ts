@@ -101,6 +101,8 @@ export class AuthKit implements IAuthKit {
       clientId: this.clientId,
       issuer: this.issuer,
       scope: params.scope.join(' '),
+      prompt: 'no_prompt',
+      responseMode: 'web_message',
     });
   }
 

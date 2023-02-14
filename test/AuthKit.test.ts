@@ -82,7 +82,7 @@ describe('AuthKit', () => {
       const got = await unit.authorize(params);
       expect(got).toBe(aMock.object());
     });
-    // Pairwise testing for unautenticated state
+    // Pairwise testing for unauthenticated state
     test('state exists not authenticated no refresh token no redirect handler', async () => {
       sMock = sMock.setup(i => i.getItem(authenticationKey)).returns(JSON.stringify(stateExists));
       aMock = aMock
