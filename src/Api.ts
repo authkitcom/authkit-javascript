@@ -42,7 +42,12 @@ export class Api {
       throw new Error('unable to fetch tokens');
     }
     if (tokens) {
-      return tokens;
+      return {
+        idToken: tokens.id_token,
+        refreshToken: tokens.refresh_token,
+        accessToken: tokens.access_token,
+        expiresIn: tokens.expires_in,
+      };
     } else {
       throw new Error('unable to parse tokens');
     }
