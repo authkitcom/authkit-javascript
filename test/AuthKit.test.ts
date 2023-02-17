@@ -21,6 +21,7 @@ describe('AuthKit', () => {
   const nonce = 'test-nonce';
   const params: IAuthorizeParams = {
     scope: ['a'],
+    redirectUri: '',
   };
   const stateExists: IAuthenticationState = {
     expiresIn: Date.now(),
@@ -73,6 +74,7 @@ describe('AuthKit', () => {
     const conversationState: IConversationState = {
       codeVerifier,
       nonce,
+      redirectUri: '',
     };
     // TODO - test expired state
     test('state exists and authenticated', async () => {

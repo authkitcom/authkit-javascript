@@ -24,7 +24,7 @@ const storageAuthenticationKey = '__authkit.storage.authentication';
 export interface IConversationState {
   nonce: string;
   codeVerifier: string;
-  redirectUri?: string;
+  redirectUri: string;
 }
 
 export type IQueryParamSupplier = (name: string) => Optional<string>;
@@ -117,6 +117,7 @@ export class AuthKit implements IAuthKit {
     const state = {
       codeVerifier: pkce.verifier,
       nonce,
+      redirectUri: params.redirectUri,
     };
 
     this.writeConversationStateToStorage(state);
@@ -158,8 +159,6 @@ export class AuthKit implements IAuthKit {
       tokens,
     };
   }
-  //TODO use code
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private async authorizeFromCodeParams(code: string): Promise<Optional<ITokens>> {
     const convState = this.readStateFromStorage<IConversationState>(storageConversationKey);
     if (!convState) {
@@ -168,6 +167,7 @@ export class AuthKit implements IAuthKit {
     return await this.api.getTokens({
       clientId: this.clientId,
       codeVerifier: convState.codeVerifier,
+      code: code,
       redirectUri: convState.redirectUri,
     });
   }

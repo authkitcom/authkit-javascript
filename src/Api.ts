@@ -9,7 +9,8 @@ export interface IRefreshRequest {
 export interface IGetTokensRequest {
   clientId: string;
   codeVerifier: string;
-  redirectUri?: string;
+  code: string;
+  redirectUri: string;
 }
 
 export class Api {
@@ -23,16 +24,18 @@ export class Api {
   public async getTokens(req: IGetTokensRequest): Promise<Optional<ITokens>> {
     let tokens;
     try {
-      const fd = new FormData();
-      fd.append('client_id', req.clientId);
-      fd.append('grant_type', 'authorization_code');
-      fd.append('code', req.codeVerifier);
-      if (req.redirectUri) {
-        fd.append('redirect_uri', req.redirectUri);
-      }
       const response = await fetch(`${this.issuer}/oauth/token`, {
         method: 'POST',
-        body: fd,
+        body: new URLSearchParams({
+          client_id: req.clientId,
+          grant_type: 'authorization_code',
+          code: req.code,
+          code_verifier: req.codeVerifier,
+          redirect_uri: req.redirectUri,
+        }),
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
       });
       tokens = await response.json();
     } catch (e) {

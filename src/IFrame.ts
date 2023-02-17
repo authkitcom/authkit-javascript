@@ -55,7 +55,7 @@ export class IFrame {
           window.document.body.removeChild(iframe);
         }
       };
-      window.addEventListener('message', () => {}, false);
+      window.addEventListener('message', iframeEventHandler, false);
       iframe.setAttribute('src', authUrl);
       window.document.body.append(iframe);
     });

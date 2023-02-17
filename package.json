@@ -58,5 +58,8 @@
     "@types/randombytes": "^2.0.0",
     "crypto-js": "^3.1.9-1",
     "query-string": "^6.9.0"
+  },
+  "engines": {
+    "node": ">=10.0.0"
   }
 }

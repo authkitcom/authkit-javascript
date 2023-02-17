@@ -8,7 +8,7 @@ export interface IAuthorizeParams {
   state?: string;
   redirectHandler?: IRedirectHandler;
   stateReturnHandler?: IStateReturnHandler;
-  redirectUri?: string;
+  redirectUri: string;
   scope: string[];
 }
 
