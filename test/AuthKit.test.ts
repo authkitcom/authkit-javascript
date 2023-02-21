@@ -143,7 +143,14 @@ describe('AuthKit', () => {
         .setup(async i =>
           i.getTokens(
             It.Is<IAuthorizeUrlParams>(r => {
-              return _.isEqual(r, { issuer, clientId, scope: 'a' });
+              const val = _.isEqual(r, {
+                issuer,
+                clientId,
+                scope: 'a',
+                prompt: 'no_prompt',
+                responseMode: 'web_message',
+              });
+              return val;
             }),
           ),
         )
@@ -174,6 +181,7 @@ describe('AuthKit', () => {
               const t = _.isEqual(JSON.parse(r), {
                 codeVerifier: pcke.verifier,
                 nonce: randomString,
+                redirectUri: '',
               });
               return t;
             }),
@@ -183,7 +191,9 @@ describe('AuthKit', () => {
       const unit = makeUnit({ clientId, issuer, redirectHandler: rhMock.object() });
       expect(await unit.authorize(params)).toBeUndefined();
       rhMock = rhMock.verify(i =>
-        i('https://test-issuer?client_id=test-client-id&code_challenge=test-challenge&code_challenge_method=S256'),
+        i(
+          'https://test-issuer/authorize?client_id=test-client-id&code_challenge=test-challenge&code_challenge_method=S256',
+        ),
       );
     });
   });
