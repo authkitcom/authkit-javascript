@@ -1,5 +1,6 @@
 import { ITokens } from './Tokens';
 import { Optional } from './Lang';
+import axios from 'axios';
 
 export interface IRefreshRequest {
   clientId: string;
@@ -27,21 +28,23 @@ export class Api {
     console.log('G1');
     try {
       console.log('H1');
-      const response = await fetch(`${this.issuer}/oauth/token`, {
-        method: 'POST',
-        body: new URLSearchParams({
+      const response = await axios.post(
+        `${this.issuer}/oauth/token`,
+        new URLSearchParams({
           client_id: req.clientId,
           grant_type: 'authorization_code',
           code: req.code,
           code_verifier: req.codeVerifier,
           redirect_uri: req.redirectUri,
         }),
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
         },
-      });
+      );
       console.log('I1');
-      tokens = await response.json();
+      tokens = response.data;
       console.log('J1');
     } catch (e) {
       throw new Error('unable to fetch tokens');
