@@ -155,7 +155,7 @@ export class AuthKit implements IAuthKit {
   public makeStateFromTokens(tokens: ITokens): IAuthenticationState {
     // 60 seconds grace period
     return {
-      expiresIn: Date.now() + ((tokens.expiresIn - 60) * 1000),
+      expiresIn: Date.now() + (tokens.expiresIn - 60) * 1000,
       tokens,
     };
   }
