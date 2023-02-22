@@ -33,7 +33,6 @@ export class Authentication implements IAuthentication {
   //TODO use params
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public async getTokens(params?: IAuthorizeParams): Promise<ITokens> {
-    console.log(this.state);
     if (this.isAuthenticated()) {
       return this.state.tokens!;
     }
@@ -49,8 +48,6 @@ export class Authentication implements IAuthentication {
         throw new Error('unable to refresh');
       }
     }
-    console.log(this.state);
-
     // TODO - handle iFrame
 
     // TODO - handle redirect
@@ -65,15 +62,7 @@ export class Authentication implements IAuthentication {
   }
 
   public isAuthenticated(): boolean {
-    console.log('isAuthenticated');
-    console.log(this.state);
-    const tokens = this.state?.tokens;
-    console.log({ tokens });
-    const compare = this.state.expiresIn < Date.now();
-    console.log({ compare });
-    const val = this.state?.tokens && this.state.expiresIn < Date.now();
-    console.log({ val });
-    if (this.state?.tokens && this.state.expiresIn < Date.now()) {
+    if (this.state?.tokens && this.state.expiresIn > Date.now()) {
       return true;
     }
     return false;
