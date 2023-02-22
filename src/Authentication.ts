@@ -39,10 +39,14 @@ export class Authentication implements IAuthentication {
     }
     const refreshToken = this.getRefreshToken();
     if (refreshToken) {
-      const tokens = await this.authkit.attemptRefresh(refreshToken);
-      if (tokens) {
-        this.state = this.authkit.makeStateFromTokens(tokens);
-        return tokens;
+      try {
+        const tokens = await this.authkit.attemptRefresh(refreshToken);
+        if (tokens) {
+          this.state = this.authkit.makeStateFromTokens(tokens);
+          return tokens;
+        }
+      } catch {
+        throw new Error('unable to refresh');
       }
     }
     console.log(this.state);
@@ -61,6 +65,8 @@ export class Authentication implements IAuthentication {
   }
 
   public isAuthenticated(): boolean {
+    console.log('isAuthenticated');
+    console.log(this.state);
     if (this.state?.tokens && this.state.expiresIn < Date.now()) {
       return true;
     }
