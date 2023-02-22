@@ -34,13 +34,20 @@ export class Authentication implements IAuthentication {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public async getTokens(params?: IAuthorizeParams): Promise<ITokens> {
     if (this.isAuthenticated()) {
+      console.log('W');
       return this.state.tokens!;
     }
+    console.log('X');
     const refreshToken = this.getRefreshToken();
+    console.log('Y');
     if (refreshToken) {
+      console.log('Z');
       const tokens = await this.authkit.attemptRefresh(refreshToken);
+      console.log('A1');
       if (tokens) {
+        console.log('B1');
         this.state = this.authkit.makeStateFromTokens(tokens);
+        console.log('C1');
         return tokens;
       }
     }
@@ -64,14 +71,18 @@ export class Authentication implements IAuthentication {
 
   // Has tokens but are expired
   public getRefreshToken(): Optional<string> {
+    console.log('S');
     if (this.state.tokens) {
+      console.log('T');
       return this.state.tokens.refreshToken;
     } else {
+      console.log('U');
       return undefined;
     }
   }
 
   public async logout(redirectHandler?: IRedirectHandler): Promise<void> {
+    console.log('V');
     return this.authkit.logout(redirectHandler);
   }
 }

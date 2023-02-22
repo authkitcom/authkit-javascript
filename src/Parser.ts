@@ -1,5 +1,6 @@
 // https://stackoverflow.com/a/38552302/9500527
 const jwtParser = (token: string): string | object => {
+  console.log('Parser1');
   const parts = token.split('.');
   if (parts.length < 2) {
     return {};
@@ -14,7 +15,7 @@ const jwtParser = (token: string): string | object => {
       })
       .join(''),
   );
-
+  console.log('Parser2');
   return JSON.parse(jsonPayload);
 };
 

@@ -11,6 +11,7 @@ export interface IAuthorizeUrlParams {
 }
 
 export function makeAuthorizeUrl(params: IAuthorizeUrlParams): string {
+  console.log('X2');
   const sb: string[] = [];
   sb.push(params.issuer);
   sb.push('/authorize?client_id=');
@@ -36,6 +37,7 @@ export function makeAuthorizeUrl(params: IAuthorizeUrlParams): string {
     sb.push('&redirect_uri=');
     sb.push(encodeURIComponent(params.redirectUri));
   }
+  console.log('Z2');
 
   return sb.join('');
 }

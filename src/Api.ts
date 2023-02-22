@@ -18,12 +18,15 @@ export class Api {
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public async refresh(req: IRefreshRequest): Promise<Optional<ITokens>> {
+    console.log('N1');
     return undefined;
   }
 
   public async getTokens(req: IGetTokensRequest): Promise<Optional<ITokens>> {
     let tokens;
+    console.log('G1');
     try {
+      console.log('H1');
       const response = await fetch(`${this.issuer}/oauth/token`, {
         method: 'POST',
         body: new URLSearchParams({
@@ -37,11 +40,15 @@ export class Api {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
       });
+      console.log('I1');
       tokens = await response.json();
+      console.log('J1');
     } catch (e) {
       throw new Error('unable to fetch tokens');
     }
+    console.log('K1');
     if (tokens) {
+      console.log('L1');
       return {
         idToken: tokens.id_token,
         refreshToken: tokens.refresh_token,
@@ -49,6 +56,7 @@ export class Api {
         expiresIn: tokens.expires_in,
       };
     } else {
+      console.log('M1');
       throw new Error('unable to parse tokens');
     }
   }

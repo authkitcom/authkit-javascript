@@ -13,10 +13,12 @@ interface IPkceSource {
 
 class PkceSource implements IPkceSource {
   public randomBuffer(): string {
+    console.log('T9');
     return Cryptojs.lib.WordArray.random(32).toString(Cryptojs.enc.Base64);
   }
 
   public create(): IPkce {
+    console.log('L10');
     const verifier = urlReplace(this.randomBuffer());
     const challenge = urlReplace(SHA256(verifier).toString(base64));
 
@@ -28,6 +30,7 @@ class PkceSource implements IPkceSource {
 }
 
 function urlReplace(input: string) {
+  console.log('F009');
   return input
     .replace(/\+/g, '-')
     .replace(/\//g, '_')

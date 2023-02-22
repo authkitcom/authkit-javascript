@@ -5,6 +5,7 @@ import { IAuthorizeUrlParams } from './Urls';
 export class IFrame {
   //todo unit test
   private buildQueryFromParams(baseUrl: string, params: Record<string, Optional<string>>): string {
+    console.log('Build1');
     let query = baseUrl;
     for (const key in params) {
       if (params[key]) {
@@ -14,12 +15,13 @@ export class IFrame {
         query += `${key}=${params[key]}`;
       }
     }
-
+    console.log('Build2');
     return encodeURI(query);
   }
 
   public async getTokens(params: IAuthorizeUrlParams): Promise<Optional<ITokens>> {
     return new Promise<Optional<ITokens>>((resolve, reject) => {
+      console.log('Frame1');
       const authUrl = this.buildQueryFromParams(`${params.issuer}/authorize?`, {
         response_type: 'token',
         client_id: params.clientId,
@@ -31,10 +33,12 @@ export class IFrame {
         nonce: params.nonce,
         code: params.codeChallenge,
       });
+      console.log('Frame2');
       const iframe = window.document.createElement('iframe');
       iframe.style.display = 'none';
-
+      console.log('Frame3');
       const iframeEventHandler = (e: MessageEvent) => {
+        console.log('Frame5');
         if (e.origin !== params.issuer) {
           return;
         }
@@ -55,6 +59,7 @@ export class IFrame {
           window.document.body.removeChild(iframe);
         }
       };
+      console.log('Frame4');
       window.addEventListener('message', iframeEventHandler, false);
       iframe.setAttribute('src', authUrl);
       window.document.body.append(iframe);
