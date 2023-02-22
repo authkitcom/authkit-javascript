@@ -67,6 +67,12 @@ export class Authentication implements IAuthentication {
   public isAuthenticated(): boolean {
     console.log('isAuthenticated');
     console.log(this.state);
+    const tokens = this.state?.tokens;
+    console.log({ tokens });
+    const compare = this.state.expiresIn < Date.now();
+    console.log({ compare });
+    const val = this.state?.tokens && this.state.expiresIn < Date.now();
+    console.log({ val });
     if (this.state?.tokens && this.state.expiresIn < Date.now()) {
       return true;
     }
