@@ -9,7 +9,7 @@ export interface IUserinfo {
 }
 
 export interface IAuthentication {
-  logout(): Promise<void>;
+  logout(redirectHandler?: IRedirectHandler): Promise<void>;
   // params - optional overrides merged with settings from authorize
   getTokens(params?: IAuthorizeParams): Promise<ITokens>;
   // valid non-expired authentication
