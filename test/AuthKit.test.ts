@@ -196,5 +196,32 @@ describe('AuthKit', () => {
         ),
       );
     });
+    test('state not exists no code passed with redirectUri', async () => {
+      sMock = sMock.setup(i => i.getItem(authenticationKey)).returns(null);
+      qpsMock = qpsMock.setup(i => i('code')).returns(undefined);
+      psMock = psMock.setup(i => i.create()).returns(pcke);
+      sMock = sMock
+        .setup(i =>
+          i.setItem(
+            conversationKey,
+            It.Is<string>(r => {
+              const t = _.isEqual(JSON.parse(r), {
+                codeVerifier: pcke.verifier,
+                nonce: randomString,
+                redirectUri: '',
+              });
+              return t;
+            }),
+          ),
+        )
+        .returns();
+      const unit = makeUnit({ clientId, issuer, redirectHandler: rhMock.object() });
+      expect(await unit.authorize({ ...params, redirectUri: 'testuri.com' })).toBeUndefined();
+      rhMock = rhMock.verify(i =>
+        i(
+          'https://test-issuer/authorize?client_id=test-client-id&code_challenge=test-challenge&code_challenge_method=S256&redirect_uri=testuri.com',
+        ),
+      );
+    });
   });
 });
