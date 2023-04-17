@@ -136,14 +136,14 @@ export class AuthKit implements IAuthKit {
     return new Authentication(this, params, state);
   }
 
-  public async logout(redirectHandler?: IRedirectHandler): Promise<void> {
+  public async logout(returnTo: string, redirectHandler?: IRedirectHandler): Promise<void> {
     if (!redirectHandler) {
       redirectHandler = this.redirectHandler;
     }
     if (!redirectHandler) {
       throw new Error('redirect required and no redirect handler provided');
     }
-    redirectHandler(this.issuer + '/logout');
+    redirectHandler(this.issuer + `/logout?return_to=${returnTo}`);
   }
 
   public async attemptRefresh(refreshToken: string): Promise<Optional<ITokens>> {

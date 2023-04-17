@@ -9,7 +9,7 @@ export interface IUserinfo {
 }
 
 export interface IAuthentication {
-  logout(redirectHandler?: IRedirectHandler): Promise<void>;
+  logout(redirectTo: string, redirectHandler?: IRedirectHandler): Promise<void>;
   // params - optional overrides merged with settings from authorize
   getTokens(params?: IAuthorizeParams): Promise<ITokens>;
   // valid non-expired authentication
@@ -77,7 +77,7 @@ export class Authentication implements IAuthentication {
     }
   }
 
-  public async logout(redirectHandler?: IRedirectHandler): Promise<void> {
-    return this.authkit.logout(redirectHandler);
+  public async logout(redirectTo: string, redirectHandler?: IRedirectHandler): Promise<void> {
+    return this.authkit.logout(redirectTo, redirectHandler);
   }
 }
