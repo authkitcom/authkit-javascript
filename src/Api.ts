@@ -1,5 +1,6 @@
 import { ITokens } from './Tokens';
 import { Optional } from './Lang';
+import { IUserinfo } from "./Authentication";
 
 export interface IRefreshRequest {
   clientId: string;
@@ -11,6 +12,10 @@ export interface IGetTokensRequest {
   codeVerifier: string;
   code: string;
   redirectUri: string;
+}
+
+export interface IGetUserinfoRequest {
+  token: string;
 }
 
 export class Api {
@@ -50,6 +55,20 @@ export class Api {
       };
     } else {
       throw new Error('unable to parse tokens');
+    }
+  }
+  public async getUserinfo(req: IGetUserinfoRequest): Promise<Optional<IUserinfo>> {
+    try {
+      const response = await fetch(`${this.issuer}/userinfo`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Authorization: `Bearer ${req.token}`,
+        },
+      });
+      return await response.json();
+    } catch (e) {
+      throw new Error('unable to fetch userinfo');
     }
   }
 }

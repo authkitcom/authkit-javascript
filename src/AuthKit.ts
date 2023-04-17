@@ -1,4 +1,4 @@
-import { Authentication, IAuthentication, IAuthenticationState } from './Authentication';
+import { Authentication, IAuthentication, IAuthenticationState, IUserinfo } from "./Authentication";
 
 import { Api } from './Api';
 import { IFrame } from './IFrame';
@@ -144,6 +144,11 @@ export class AuthKit implements IAuthKit {
       throw new Error('redirect required and no redirect handler provided');
     }
     redirectHandler(this.issuer + `/logout?return_to=${returnTo}`);
+  }
+  public async getUserinfo(token: string): Promise<Optional<IUserinfo>> {
+    return await this.api.getUserinfo({
+      token: token,
+    });
   }
 
   public async attemptRefresh(refreshToken: string): Promise<Optional<ITokens>> {

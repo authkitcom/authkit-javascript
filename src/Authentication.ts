@@ -56,9 +56,15 @@ export class Authentication implements IAuthentication {
   }
 
   public async getUserinfo(): Promise<IUserinfo> {
-    return {
-      sub: '',
-    };
+    if (this.isAuthenticated()) {
+      const userinfo = await this.authkit.getUserinfo(this.state.tokens!.accessToken!);
+      if (userinfo) {
+        return userinfo;
+      } else {
+        throw new Error('unable to retrieve userinfo');
+      }
+    }
+    throw new Error('must be authenticated');
   }
 
   public isAuthenticated(): boolean {
