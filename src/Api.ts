@@ -1,6 +1,6 @@
 import { ITokens } from './Tokens';
 import { Optional } from './Lang';
-import { IUserinfo } from "./Authentication";
+import { IUserinfo } from './Authentication';
 
 export interface IRefreshRequest {
   clientId: string;

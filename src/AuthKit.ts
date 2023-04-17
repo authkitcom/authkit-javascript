@@ -1,4 +1,4 @@
-import { Authentication, IAuthentication, IAuthenticationState, IUserinfo } from "./Authentication";
+import { Authentication, IAuthentication, IAuthenticationState, IUserinfo } from './Authentication';
 
 import { Api } from './Api';
 import { IFrame } from './IFrame';
