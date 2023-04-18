@@ -128,7 +128,7 @@ export class AuthKit implements IAuthKit {
         codeChallenge: pkce.challenge,
         issuer: this.issuer,
         redirectUri: params.redirectUri,
-        state: params.state
+        state: params.state,
       }),
     );
   }
