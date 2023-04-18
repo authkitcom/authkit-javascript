@@ -216,10 +216,10 @@ describe('AuthKit', () => {
         )
         .returns();
       const unit = makeUnit({ clientId, issuer, redirectHandler: rhMock.object() });
-      expect(await unit.authorize({ ...params, redirectUri: 'testuri.com' })).toBeUndefined();
+      expect(await unit.authorize({ ...params, redirectUri: 'testuri.com', state: 'teststate' })).toBeUndefined();
       rhMock = rhMock.verify(i =>
         i(
-          'https://test-issuer/authorize?client_id=test-client-id&code_challenge=test-challenge&code_challenge_method=S256&redirect_uri=testuri.com',
+          'https://test-issuer/authorize?client_id=test-client-id&code_challenge=test-challenge&code_challenge_method=S256&state=teststate&redirect_uri=testuri.com',
         ),
       );
     });
