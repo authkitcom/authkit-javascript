@@ -60,9 +60,8 @@ export class Api {
   public async getUserinfo(req: IGetUserinfoRequest): Promise<Optional<IUserinfo>> {
     try {
       const response = await fetch(`${this.issuer}/userinfo`, {
-        method: 'POST',
+        method: 'GET',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
           Authorization: `Bearer ${req.token}`,
         },
       });
