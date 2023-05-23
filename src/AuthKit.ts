@@ -62,22 +62,20 @@ export class AuthKit implements IAuthKit {
     if (auth) {
       return auth;
     }
-    // Handle code return
-    let redirectHandler = this.redirectHandler;
-    if (params.redirectHandler) {
-      redirectHandler = params.redirectHandler;
-    }
-    const aParams = {
+    const authorizeParams: IAuthorizeParams = {
       redirectUri: params.redirectUri,
       scope: params.scope,
       state: params.state,
+      redirectHandler: params.redirectHandler ?? this.redirectHandler,
+      mode: params.mode ?? 'redirect',
+      stateReturnHandler: params.stateReturnHandler,
     };
 
     switch (params.mode || 'redirect') {
       case 'silent':
-        return this.makeAuthenticationFromTokens(params, await this.attemptAuthorizeWithIFrame(aParams));
+        return this.makeAuthenticationFromTokens(params, await this.attemptAuthorizeWithIFrame(authorizeParams));
       case 'redirect':
-        await this.authorizeRedirect(aParams, redirectHandler);
+        await this.authorizeRedirect(authorizeParams);
         return undefined;
     }
   }
@@ -106,8 +104,8 @@ export class AuthKit implements IAuthKit {
     });
   }
 
-  public async authorizeRedirect(params: IAuthorizeParams, redirectHandler?: (uri: string) => void) {
-    if (!redirectHandler) {
+  public async authorizeRedirect(params: IAuthorizeParams) {
+    if (!params.redirectHandler) {
       throw new Error('redirect handler not provided');
     }
 
@@ -122,7 +120,7 @@ export class AuthKit implements IAuthKit {
 
     this.writeConversationStateToStorage(state);
 
-    redirectHandler(
+    params.redirectHandler(
       makeAuthorizeUrl({
         clientId: this.clientId,
         codeChallenge: pkce.challenge,
